@@ -1,4 +1,5 @@
 use std::os::unix::raw::time_t;
+use actix::{Actor, Context};
 use crate::policy_maker::PolicyDecision::Buy;
 use crate::trade;
 use crate::trade::{Buy, Hold, Sell};
@@ -6,6 +7,18 @@ use crate::trade::{Buy, Hold, Sell};
 pub struct PolicyMaker {
     moving_average_stream: u64,
     true_price_stream: u64,
+}
+
+impl Actor for PolicyMaker {
+    type Context = Context<Self>;
+
+    fn started(&mut self, _ctx: &mut Context<Self>) {
+        println!("Actor is alive");
+    }
+
+    fn stopped(&mut self, _ctx: &mut Context<Self>) {
+        println!("Actor is stopped");
+    }
 }
 
 // PolicyFrame is a snapshot in time, containing all parameters
