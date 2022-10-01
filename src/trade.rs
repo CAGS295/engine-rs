@@ -38,8 +38,8 @@ async fn sell(
     side: OrderSide::Sell,
     ..OrderRequest::default()
   };
-  let res = account.place_order(market_buy).await;
-  return res;
+
+  account.place_order(market_buy).await
 }
 
 #[cfg(test)]
@@ -66,7 +66,7 @@ mod test {
     let symbol = "BTCUSDT";
     let quantity = 0.001;
     let price = 19000.;
-    let result = sell(&symbol, quantity, price).await;
+    let result = sell(symbol, quantity, price).await;
     println!("{:?}", result);
     assert!(result.is_ok());
   }
