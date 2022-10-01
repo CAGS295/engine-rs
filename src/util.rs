@@ -17,7 +17,6 @@ pub struct MovingAverageMessage(pub f64);
 #[rtype(result = "Option<f64>")]
 pub struct SharpeRatio(pub f64);
 
-
 pub fn deserialize_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
   D: serde::de::Deserializer<'de>,
