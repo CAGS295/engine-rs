@@ -5,7 +5,7 @@ use awc::ws;
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::{select, sync::mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use engine_rs::binance_websocket::open_partial_depth_stream;
+use engine_rs::binance_websocket::{open_partial_depth_stream, open_user_data_stream};
 
 #[actix_web::main]
 async fn main() {
@@ -28,8 +28,11 @@ async fn main() {
         cmd_tx.send(cmd).unwrap();
     });
 
-    let result = open_partial_depth_stream("btcusdt");
-    let (res, mut ws) = result.await.unwrap();
+    let bytes = open_user_data_stream().await.unwrap();
+    log::info!("bytes: {:?}", bytes);
+
+    let stream = open_partial_depth_stream("btcusdt");
+    let (res, mut ws) = stream.await.unwrap();
 
     log::debug!("response: {res:?}");
     log::info!("connected; server will echo messages sent");
