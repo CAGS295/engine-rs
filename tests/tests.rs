@@ -1,4 +1,4 @@
-use engine_rs::binance_websocket::{StreamTicker, TickerMessage};
+use engine_rs::binance_websocket::{BinanceIngestor, TickerMessage};
 use engine_rs::risk::Drawdown;
 use engine_rs::util::Double;
 
@@ -34,7 +34,7 @@ async fn test_ticker() {
 
   let rsa = ReceivedSomethingActor::new().start();
 
-  let st = StreamTicker::new(vec![rsa.clone().recipient()]);
+  let st = BinanceIngestor::new(vec![rsa.clone().recipient()], vec![]);
 
   actix::spawn(st.run("btcusdt"));
 

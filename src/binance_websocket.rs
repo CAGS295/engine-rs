@@ -13,7 +13,6 @@ use binance::config::Config;
 use binance::rest_model::UserDataStream;
 use binance::userstream::UserStream;
 
-use dotenv::dotenv;
 use openssl::ssl::{SslConnector, SslMethod};
 use serde::Deserialize;
 use serde_json;
@@ -29,12 +28,20 @@ fn build_client() -> awc::Client {
 pub async fn open_partial_depth_stream(
   symbol: &str,
 ) -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
+  let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
+
+  let answer: UserDataStream = user_stream
+    .start()
+    .await
+    .map_err(|_| WsClientError::MissingConnectionHeader)?;
+
+  let listen_key: String = answer.listen_key;
+
   let client = build_client();
 
   client
-    //.ws(format!("wss://stream.binance.com:9443/ws/{symbol:}@depth5"))
     .ws(format!(
-      "wss://testnet.binance.vision/ws/{symbol:}@bookTicker"
+      "wss://testnet.binance.vision/stream?streams={symbol:}@bookTicker/{listen_key:}"
     ))
     .connect()
     .await
@@ -45,27 +52,39 @@ pub async fn open_partial_depth_stream(
 // In theory, this will take care of keeping the stream alive by sending back Ping/Keep-alive requests
 pub async fn open_user_data_stream(
 ) -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
-  dotenv().ok();
   let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
+
   let answer: UserDataStream = user_stream
     .start()
     .await
     .map_err(|_| WsClientError::MissingConnectionHeader)?;
+
   let listen_key: String = answer.listen_key;
-  println!("Listen key: {:?}", listen_key);
+
   let client = build_client();
 
   client
-    //.ws(format!("wss://stream.binance.com:9443/ws/{listen_key:}"))
     .ws(format!("wss://testnet.binance.vision/ws/{listen_key:}"))
     .connect()
     .await
 }
 
+#[derive(Deserialize)]
+pub struct Stream {
+  pub stream: String,
+  pub data: StreamContent,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum StreamContent {
+  BookTicker(TickerMessage),
+  UserDataAccountUpdate(AccountUpdateMessage),
+}
+
 #[allow(non_snake_case)]
-#[derive(Message)]
+#[derive(Message, Deserialize, Debug, Clone, Default)]
 #[rtype(result = "f64")]
-#[derive(Deserialize, Debug, Clone, Default)]
 pub struct TickerMessage {
   pub u: u64,
   pub s: String,
@@ -79,14 +98,40 @@ pub struct TickerMessage {
   pub A: f64,
 }
 
-#[derive(Default)]
-pub struct StreamTicker {
-  recipients: Vec<Recipient<TickerMessage>>,
+#[allow(non_snake_case)]
+#[derive(Message, Deserialize, Debug, Clone, Default)]
+#[rtype(result = "()")]
+pub struct AccountUpdateMessage {
+  pub e: String,
+  pub E: u64,
+  pub u: u64,
+  pub B: Vec<Balance>,
 }
 
-impl StreamTicker {
-  pub fn new(recipients: Vec<Recipient<TickerMessage>>) -> Self {
-    Self { recipients }
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct Balance {
+  pub a: String,
+  #[serde(deserialize_with = "deserialize_from_str")]
+  pub f: f64,
+  #[serde(deserialize_with = "deserialize_from_str")]
+  pub l: f64,
+}
+
+#[derive(Default)]
+pub struct BinanceIngestor {
+  book_ticker_recipients: Vec<Recipient<TickerMessage>>,
+  user_data_account_update_recipients: Vec<Recipient<AccountUpdateMessage>>,
+}
+
+impl BinanceIngestor {
+  pub fn new(
+    book_ticker_recipients: Vec<Recipient<TickerMessage>>,
+    user_data_account_update_recipients: Vec<Recipient<AccountUpdateMessage>>,
+  ) -> Self {
+    Self {
+      book_ticker_recipients,
+      user_data_account_update_recipients,
+    }
   }
 
   pub async fn run(self, symbol: &str) {
@@ -96,14 +141,23 @@ impl StreamTicker {
 
     while let Some(msg) = ws.next().await {
       if let Ok(ws::Frame::Text(txt)) = msg {
-        match serde_json::from_slice::<TickerMessage>(&txt) {
-          Ok(v) => {
-            log::info!("Stream ticker received: {v:?}");
+        match serde_json::from_slice::<Stream>(&txt) {
+          Ok(v) => match v.data {
+            StreamContent::BookTicker(tm) => {
+              log::info!("Received ticker message: {tm:?}");
 
-            for r in &self.recipients {
-              r.do_send(v.clone());
+              for r in &self.book_ticker_recipients {
+                r.do_send(tm.clone());
+              }
             }
-          }
+            StreamContent::UserDataAccountUpdate(aum) => {
+              log::info!("Received account update message: {aum:?}");
+
+              for r in &self.user_data_account_update_recipients {
+                r.do_send(aum.clone());
+              }
+            }
+          },
           Err(e) => {
             log::error!("Stream ticker couldn't deserialize message: {txt:?}. Error: {e:?}");
           }
