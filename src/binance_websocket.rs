@@ -70,14 +70,13 @@ pub async fn open_user_data_stream(
 }
 
 #[derive(Deserialize)]
-pub struct Stream {
-  pub stream: String,
-  pub data: StreamContent,
+struct BinanceMessage {
+  data: BinanceMessageContent,
 }
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-pub enum StreamContent {
+enum BinanceMessageContent {
   BookTicker(TickerMessage),
   UserDataAccountUpdate(AccountUpdateMessage),
 }
@@ -141,16 +140,16 @@ impl BinanceIngestor {
 
     while let Some(msg) = ws.next().await {
       if let Ok(ws::Frame::Text(txt)) = msg {
-        match serde_json::from_slice::<Stream>(&txt) {
+        match serde_json::from_slice::<BinanceMessage>(&txt) {
           Ok(v) => match v.data {
-            StreamContent::BookTicker(tm) => {
+            BinanceMessageContent::BookTicker(tm) => {
               log::info!("Received ticker message: {tm:?}");
 
               for r in &self.book_ticker_recipients {
                 r.do_send(tm.clone());
               }
             }
-            StreamContent::UserDataAccountUpdate(aum) => {
+            BinanceMessageContent::UserDataAccountUpdate(aum) => {
               log::info!("Received account update message: {aum:?}");
 
               for r in &self.user_data_account_update_recipients {
@@ -159,7 +158,7 @@ impl BinanceIngestor {
             }
           },
           Err(e) => {
-            log::error!("Stream ticker couldn't deserialize message: {txt:?}. Error: {e:?}");
+            log::error!("Binance ingestor couldn't deserialize message: {txt:?}. Error: {e:?}");
           }
         }
       }
