@@ -64,20 +64,21 @@ struct StreamTicker {
   recipients: Vec<Recipient<TickerMessage>>,
 }
 
-#[derive(Message)]
-#[rtype(result = "()")]
+#[derive(Message, Default)]
+#[rtype(result = "f64")]
 #[derive(Deserialize, Debug, Clone)]
-struct TickerMessage {
-  u: u64,
-  s: String,
+#[allow(non_snake_case)]
+pub struct TickerMessage {
+  pub u: u64,
+  pub s: String,
   #[serde(deserialize_with = "deserialize_from_str")]
-  b: f64,
+  pub b: f64,
   #[serde(deserialize_with = "deserialize_from_str")]
-  B: f64,
+  pub B: f64,
   #[serde(deserialize_with = "deserialize_from_str")]
-  a: f64,
+  pub a: f64,
   #[serde(deserialize_with = "deserialize_from_str")]
-  A: f64,
+  pub A: f64,
 }
 
 impl StreamTicker {
@@ -113,10 +114,12 @@ impl Actor for DActor {
 }
 
 impl Handler<TickerMessage> for DActor {
-  type Result = ();
-  fn handle(&mut self, msg: TickerMessage, _ctx: &mut Context<Self>) {
+  type Result = f64;
+  fn handle(&mut self, msg: TickerMessage, _ctx: &mut Context<Self>) -> f64 {
     log::error!("Ticker msg received: {:?}", msg);
     self.rcvd = true;
+    //dummy to satisfy the return type
+    0.
   }
 }
 #[cfg(test)]
