@@ -6,13 +6,6 @@ use crate::{Actor, Context, Handler, Message, Recipient};
 #[rtype(result = "()")]
 pub struct MidPrice(pub f64);
 
-#[derive(Message)]
-#[rtype(result = "MidPrice")]
-pub struct PlaceHolderTicker {
-  pub bid: f64,
-  pub ask: f64,
-}
-
 use crate::binance_websocket::TickerMessage;
 
 pub struct MidPriceActor {

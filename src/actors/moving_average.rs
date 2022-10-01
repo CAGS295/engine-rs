@@ -1,4 +1,4 @@
-use actix::{Actor, Context, Handler, Recipient};
+use actix::{Actor, Context, Handler, Recipient, MessageResult};
 
 use crate::util::MovingAverageMessage;
 
@@ -30,7 +30,7 @@ impl Actor for MovingAverage {
 }
 
 impl Handler<MovingAverageMessage> for MovingAverage {
-  type Result = f64;
+  type Result = MessageResult<MovingAverageMessage>;
 
   fn handle(
     &mut self,
@@ -43,7 +43,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
     if empty_buffer_length > 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
 
-      0.
+      MessageResult(0f64)
     } else if empty_buffer_length == 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
       self.moving_average =
@@ -53,7 +53,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
         s.do_send(MovingAverageMessage(self.moving_average));
       }
 
-      self.moving_average
+      MessageResult(self.moving_average)
     } else {
       self.ring_buffer.remove(0);
       self.ring_buffer.push(msg.0);
@@ -63,7 +63,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
       for s in &self.subscribers {
         s.do_send(MovingAverageMessage(self.moving_average));
       }
-      self.moving_average
+      MessageResult( self.moving_average)
     }
   }
 }
