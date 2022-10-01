@@ -47,24 +47,30 @@ async fn main() {
                         log::info!("User Data: {txt:?}")
                     }
 
-                    _ => log::info!("User Data Empty")
+                    Ok(ws::Frame::Ping(_)) => {
+                        // respond to ping probes
+                        user_ws.send(ws::Message::Pong(Bytes::new())).await.unwrap();
+                    }
+
+                    _ => {}
                 }
             }
-            // Some(msg) = ws.next() => {
-            //     match msg {
-            //         Ok(ws::Frame::Text(txt)) => {
-            //             // log echoed messages from server
-            //             log::info!("Server: {txt:?}")
-            //         }
-            //
-            //         Ok(ws::Frame::Ping(_)) => {
-            //             // respond to ping probes
-            //             ws.send(ws::Message::Pong(Bytes::new())).await.unwrap();
-            //         }
-            //
-            //         _ => {}
-            //     }
-            // }
+
+            Some(msg) = ws.next() => {
+                match msg {
+                    Ok(ws::Frame::Text(txt)) => {
+                        // log echoed messages from server
+                        log::info!("Server: {txt:?}")
+                    }
+
+                    Ok(ws::Frame::Ping(_)) => {
+                        // respond to ping probes
+                        ws.send(ws::Message::Pong(Bytes::new())).await.unwrap();
+                    }
+
+                    _ => {}
+                }
+            }
 
             Some(cmd) = cmd_rx.next() => {
                 if cmd.is_empty() {

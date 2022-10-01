@@ -26,7 +26,8 @@ fn build_client() -> awc::Client {
 pub async fn open_partial_depth_stream(symbol: &str) -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
     let client = build_client();
     let result = client
-        .ws(format!("wss://stream.binance.com:9443/ws/{symbol:}@depth5"))
+        //.ws(format!("wss://stream.binance.com:9443/ws/{symbol:}@depth5"))
+        .ws(format!("wss://testnet.binance.vision/ws/{symbol:}@depth5"))
         .connect()
         .await;
     result
@@ -43,7 +44,8 @@ pub async fn open_user_data_stream() -> Result<(ClientResponse, Framed<BoxedSock
     println!("Listen key: {:?}", listen_key);
     let client = build_client();
     let result = client
-        .ws(format!("wss://stream.binance.com:9443/ws/{listen_key:}"))
+        //.ws(format!("wss://stream.binance.com:9443/ws/{listen_key:}"))
+        .ws(format!("wss://testnet.binance.vision/ws/{listen_key:}"))
         .connect()
         .await;
     result
