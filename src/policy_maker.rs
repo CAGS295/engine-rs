@@ -1,3 +1,4 @@
+use crate::actors::mid_price::MidPrice;
 use crate::binance_websocket::TickerMessage;
 use crate::trade::{Buy, Hold, Sell};
 use crate::util::deserialize_from_str;
@@ -43,6 +44,22 @@ enum PolicyDecision {
 }
 
 impl PolicyMaker {
+  fn new() -> Self {
+    Self {
+      moving_average_stream: 0.,
+      true_price_stream: 0.,
+      current_true_price: 0.,
+      prev_true_price: 0.,
+      frame: PolicyFrame {
+        symbol: todo!(),
+        moving_average_gradient: todo!(),
+        true_price_gradient: todo!(),
+        moving_average_price: todo!(),
+        true_price: todo!(),
+        prev_decision: todo!(),
+      },
+    }
+  }
   async fn run(self) {}
 
   // if moving average and true price are trending upwards,
@@ -100,14 +117,14 @@ pub struct MovingMessage {
   pub best_ask_qty: f64,
 }
 
-impl Handler<TickerMessage> for PolicyMaker {
+impl Handler<MidPrice> for PolicyMaker {
   type Result = ();
   // Handle true price (TickerMessage), always keep the latest true price
   // The actual decision making is done when handling moving average message
-  fn handle(&mut self, msg: TickerMessage, _ctx: &mut Context<Self>) {
-    log::error!("Ticker msg received: {:?}", msg);
+  fn handle(&mut self, msg: MidPrice, _ctx: &mut Context<Self>) {
+    log::error!("Ticker msg received: {:?}", msg.0);
     let prev_true_price = self.current_true_price;
-    self.current_true_price = msg.best_ask_price;
+    self.current_true_price = msg.0;
 
     let frame = PolicyFrame {
       true_price_gradient: self.current_true_price - prev_true_price,
@@ -154,4 +171,39 @@ fn is_rising_trend(frame: &PolicyFrame) -> bool {
 
 fn is_downward_trend(frame: &PolicyFrame) -> bool {
   frame.moving_average_gradient < 0.0 && frame.true_price_gradient < 0.0
+}
+
+#[cfg(test)]
+mod test {
+  use super::PolicyDecision;
+  use super::PolicyFrame;
+  use super::PolicyMaker;
+
+  use super::{Buy, Hold, Sell};
+  use actix::Actor;
+  use chrono::Utc;
+
+  fn test_policy() {
+    let sut = PolicyMaker::new();
+    let addr = sut.start();
+    //addr.send()
+  }
+
+  fn test_should_buy() {
+    let prev_decision = Buy {
+      symbol: "btcusdt".to_string(),
+      quantity: 0.1,
+      price: 10.0,
+      timestamp: Utc::now(),
+    };
+
+    let frame = PolicyFrame {
+      symbol: "btcusdt".to_string(),
+      moving_average_gradient: 2.0,
+      true_price_gradient: 3.0,
+      moving_average_price: 10.0,
+      true_price: 10.0,
+      prev_decision: Some(PolicyDecision::BuyAction(prev_decision)),
+    };
+  }
 }
