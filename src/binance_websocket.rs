@@ -2,11 +2,11 @@ use crate::util::{deserialize_from_str, tls_web_client};
 use actix::{Message, Recipient};
 use actix_codec::Framed;
 
-use awc::Client;
 use awc::error::WsClientError;
 use awc::ws;
 use awc::ws::Codec;
 use awc::BoxedSocket;
+use awc::Client;
 use futures_util::StreamExt;
 
 use binance::api::Binance;
@@ -82,7 +82,9 @@ impl BinanceIngestor {
     }
   }
 
-  async fn get_stream(&self) -> Result<Framed<BoxedSocket, Codec>, WsClientError> {
+  async fn get_stream(
+    &self,
+  ) -> Result<Framed<BoxedSocket, Codec>, WsClientError> {
     let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
 
     let listen_key = user_stream
