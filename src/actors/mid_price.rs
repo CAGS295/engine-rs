@@ -3,8 +3,14 @@ use actix::MessageResult;
 use crate::{Actor, Context, Handler, Message, Recipient};
 
 #[derive(Message)]
-#[rtype(result = "()")]
+#[rtype(result = "MidPriceResponse")]
 pub struct MidPrice(pub f64);
+
+#[derive(Debug)]
+pub enum MidPriceResponse{
+  MovingAverage(f64),
+  Policy(f64),
+}
 
 use crate::binance_websocket::TickerMessage;
 

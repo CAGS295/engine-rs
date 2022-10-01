@@ -1,3 +1,6 @@
+
+pub use assert_matches::assert_matches;
+
 pub mod risk;
 pub mod util;
 
