@@ -1,10 +1,10 @@
 use core::ops::{Add, Div, Mul, Sub};
 
-pub fn mean<T, const N: u32>(last: T, new: impl Into<T>) -> T
+pub fn mean<T>(last: T, new: impl Into<T>, size: u32) -> T
 where
   T: Add<Output = T> + Sub<Output = T> + Div<Output = T> + Copy + From<u32>,
 {
-  last + (new.into() - last) / N.into()
+  last + (new.into() - last) / size.into()
 }
 
 pub fn sum<T: Add<T, Output = T>>(values: impl Iterator<Item = T>) -> T
