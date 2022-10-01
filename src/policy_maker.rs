@@ -1,7 +1,7 @@
 use crate::actors::mid_price::MidPrice;
 use crate::binance_websocket::TickerMessage;
 use crate::trade::{Buy, Hold, Sell};
-use crate::util::deserialize_from_str;
+use crate::util::{deserialize_from_str, MovingAverageMessage};
 use actix::{Actor, Context, Handler, Message};
 use chrono::Utc;
 use serde::Deserialize;
@@ -116,40 +116,22 @@ pub struct MovingMessage {
   #[serde(deserialize_with = "deserialize_from_str", rename = "A")]
   pub best_ask_qty: f64,
 }
-
-impl Handler<MidPrice> for PolicyMaker {
-  type Result = ();
-  // Handle true price (TickerMessage), always keep the latest true price
-  // The actual decision making is done when handling moving average message
-  fn handle(&mut self, msg: MidPrice, _ctx: &mut Context<Self>) {
-    log::error!("Ticker msg received: {:?}", msg.0);
-    let prev_true_price = self.current_true_price;
-    self.current_true_price = msg.0;
-
-    let frame = PolicyFrame {
-      true_price_gradient: self.current_true_price - prev_true_price,
-      true_price: self.current_true_price,
-      symbol: msg.symbol,
-      prev_decision: self.frame.prev_decision.take(),
-      // TODO: update
-      moving_average_gradient: 0.,
-      moving_average_price: 0.,
-    };
-    self.frame = frame;
-  }
-}
-
-impl Handler<MovingMessage> for PolicyMaker {
-  type Result = ();
+impl Handler<MovingAverageMessage> for PolicyMaker {
+  type Result = f64;
   // Handle moving average message. Receive message then make a policy decision
-  fn handle(&mut self, msg: MovingMessage, _ctx: &mut Context<Self>) {
+  fn handle(
+    &mut self,
+    msg: MovingAverageMessage,
+    _ctx: &mut Context<Self>,
+  ) -> f64 {
     let prev_moving_price = self.frame.moving_average_price;
 
     self.frame.moving_average_gradient =
-      msg.best_ask_price - self.frame.moving_average_price; // TODO MovingAvgMsg
-    self.frame.moving_average_price = msg.best_ask_price; //
+      msg.0 - self.frame.moving_average_price;
+    self.frame.moving_average_price = msg.0;
 
     self.make_policy_decision(&self.frame);
+    return msg.0;
   }
 }
 
@@ -189,8 +171,9 @@ mod test {
     //addr.send()
   }
 
+  #[actix_rt::test]
   fn test_should_buy() {
-    let prev_decision = Buy {
+    let buy = Buy {
       symbol: "btcusdt".to_string(),
       quantity: 0.1,
       price: 10.0,
@@ -203,7 +186,7 @@ mod test {
       true_price_gradient: 3.0,
       moving_average_price: 10.0,
       true_price: 10.0,
-      prev_decision: Some(PolicyDecision::BuyAction(prev_decision)),
+      prev_decision: Some(PolicyDecision::BuyAction(buy)),
     };
   }
 }

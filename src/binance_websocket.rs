@@ -1,17 +1,17 @@
+use crate::actors::mid_price::MidPrice;
 use crate::util::deserialize_from_str;
+use actix::MessageResult;
 use actix::{Message, Recipient};
 use actix_codec::Framed;
-
 use awc::error::WsClientError;
 use awc::ws;
 use awc::ws::Codec;
 use awc::{BoxedSocket, ClientResponse};
-use futures_util::StreamExt;
-
 use binance::api::Binance;
 use binance::config::Config;
 use binance::rest_model::UserDataStream;
 use binance::userstream::UserStream;
+use futures_util::StreamExt;
 
 use dotenv::dotenv;
 use openssl::ssl::{SslConnector, SslMethod};
@@ -64,8 +64,8 @@ pub async fn open_user_data_stream(
 
 #[allow(non_snake_case)]
 #[derive(Message)]
-#[rtype(result = "()")]
-#[derive(Deserialize, Debug, Clone)]
+#[rtype(result = "f64")]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct TickerMessage {
   #[serde(deserialize_with = "deserialize_from_str", rename = "u")]
   pub update_id: u64,
