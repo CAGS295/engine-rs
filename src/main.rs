@@ -1,11 +1,11 @@
 use std::{io, thread};
 
 use actix_web::web::Bytes;
-use awc::{ClientBuilder, ws};
+use awc::ws;
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::{select, sync::mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use openssl::ssl::{SslConnector, SslMethod};
+use engine_rs::binance_websocket::open_partial_depth_stream;
 
 #[actix_web::main]
 async fn main() {
@@ -27,14 +27,9 @@ async fn main() {
 
         cmd_tx.send(cmd).unwrap();
     });
-    let ssl_connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
-    let awc_connector = awc::Connector::new().openssl(ssl_connector);
-    let ssl_client = awc::Client::builder().connector(awc_connector).finish();
-    let (res, mut ws) = ssl_client
-        .ws("wss://stream.binance.com:9443/ws/btcusdt@depth5")
-        .connect()
-        .await
-        .unwrap();
+
+    let result = open_partial_depth_stream("btcusdt");
+    let (res, mut ws) = result.await.unwrap();
 
     log::debug!("response: {res:?}");
     log::info!("connected; server will echo messages sent");
