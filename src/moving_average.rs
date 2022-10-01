@@ -1,6 +1,6 @@
 use actix::{Actor, Context, Handler, Recipient};
 
-use crate::util::Double;
+use crate::util::MovingAverageMessage;
 
 // Moving average is 0 if number of received messages
 // is not a multiple of the interval_length
@@ -8,13 +8,13 @@ pub struct MovingAverage {
   moving_average: f64,
   ring_buffer: Vec<f64>,
   interval_length: usize,
-  subscribers: Vec<Recipient<Double>>,
+  subscribers: Vec<Recipient<MovingAverageMessage>>,
 }
 
 impl MovingAverage {
   pub fn new(
     interval_length: usize,
-    subscribers: Vec<Recipient<Double>>,
+    subscribers: Vec<Recipient<MovingAverageMessage>>,
   ) -> Self {
     Self {
       moving_average: 0.,
@@ -29,10 +29,14 @@ impl Actor for MovingAverage {
   type Context = Context<Self>;
 }
 
-impl Handler<Double> for MovingAverage {
+impl Handler<MovingAverageMessage> for MovingAverage {
   type Result = f64;
 
-  fn handle(&mut self, msg: Double, _ctx: &mut Context<Self>) -> Self::Result {
+  fn handle(
+    &mut self,
+    msg: MovingAverageMessage,
+    _ctx: &mut Context<Self>,
+  ) -> Self::Result {
     let empty_buffer_length =
       self.ring_buffer.iter().filter(|&n| *n == 0.).count();
 
@@ -46,7 +50,7 @@ impl Handler<Double> for MovingAverage {
         self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
       for s in &self.subscribers {
-        s.do_send(Double(self.moving_average));
+        s.do_send(MovingAverageMessage(self.moving_average));
       }
 
       return self.moving_average;
@@ -57,7 +61,7 @@ impl Handler<Double> for MovingAverage {
         self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
       for s in &self.subscribers {
-        s.do_send(Double(self.moving_average));
+        s.do_send(MovingAverageMessage(self.moving_average));
       }
       self.moving_average
     }
@@ -68,16 +72,16 @@ impl Handler<Double> for MovingAverage {
 async fn positive() {
   let addr = MovingAverage::new(3, vec![]).start();
 
-  let res = addr.send(Double(1.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(1.)).await.unwrap();
   assert_eq!(res, 0.);
-  let res = addr.send(Double(2.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(2.)).await.unwrap();
   assert_eq!(res, 0.);
-  let res = addr.send(Double(3.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(3.)).await.unwrap();
   assert_eq!(res, 2.);
-  let res = addr.send(Double(4.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(4.)).await.unwrap();
   assert_eq!(res, 3.);
-  let res = addr.send(Double(5.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(5.)).await.unwrap();
   assert_eq!(res, 4.);
-  let res = addr.send(Double(6.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(6.)).await.unwrap();
   assert_eq!(res, 5.);
 }
