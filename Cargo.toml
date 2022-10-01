@@ -23,3 +23,6 @@ futures-util = { version = "0.3.17", default-features = false, features = ["std"
 log = "0.4"
 tokio = { version = "1.13.1", features = ["full"] }
 tokio-stream = "0.1.8"
+
+dotenv = "0.15.0"
+binance-rs-async = "1.1.11"
