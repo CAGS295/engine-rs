@@ -6,8 +6,7 @@ use crate::util::Double;
 // is not a multiple of the interval_length
 pub struct MovingAverage {
   moving_average: f64,
-  partial_sum: f64,
-  current_interval: usize,
+  ring_buffer: Vec<f64>,
   interval_length: usize,
   subscribers: Vec<Recipient<Double>>,
 }
@@ -19,8 +18,7 @@ impl MovingAverage {
   ) -> Self {
     Self {
       moving_average: 0.,
-      partial_sum: 0.,
-      current_interval: 0,
+      ring_buffer: vec![0.; interval_length],
       interval_length,
       subscribers,
     }
@@ -35,25 +33,31 @@ impl Handler<Double> for MovingAverage {
   type Result = f64;
 
   fn handle(&mut self, msg: Double, _ctx: &mut Context<Self>) -> Self::Result {
-    self.current_interval += 1;
-    self.current_interval %= self.interval_length;
-    self.partial_sum += msg.0;
-
-    if self.current_interval == 1 {
-      self.partial_sum = msg.0;
-    }
-
-    if self.current_interval == 0 {
-      self.partial_sum /= self.interval_length as f64;
+    let empty_buffer_length =
+      self.ring_buffer.iter().filter(|&n| *n == 0.).count();
+    println!(
+      "this is ring buffer {:?}, this is empty: {}",
+      self.ring_buffer, empty_buffer_length
+    );
+    if empty_buffer_length > 1 {
+      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
+      return 0.;
+    } else if empty_buffer_length == 1 {
+      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
+      self.moving_average =
+        self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
+      return self.moving_average;
+    } else {
+      self.ring_buffer.remove(0);
+      self.ring_buffer.push(msg.0);
+      self.moving_average =
+        self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
       for s in &self.subscribers {
-        s.do_send(Double(self.partial_sum));
+        s.do_send(Double(self.moving_average));
       }
-
-      self.moving_average = self.partial_sum;
+      return self.moving_average;
     }
-
-    self.moving_average
   }
 }
 
