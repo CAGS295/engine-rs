@@ -14,10 +14,8 @@ repository = "https://github.com/jofas/deserialize_custom_strings"
 [dependencies]
 actix = "0.13"
 actix-codec = "0.5"
-actix-files = "0.6"
 actix-rt = "2"
 actix-web = "4"
-actix-web-actors = "4.1"
 awc = {version = "3", features = ["openssl"]}
 openssl = "0.10.42"
 url = "2.3.1"
