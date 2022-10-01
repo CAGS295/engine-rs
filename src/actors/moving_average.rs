@@ -1,4 +1,4 @@
-use actix::{Actor, Context, Handler, Recipient, MessageResult};
+use actix::{Actor, Context, Handler, MessageResult, Recipient};
 
 use crate::util::MovingAverageMessage;
 
@@ -63,7 +63,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
       for s in &self.subscribers {
         s.do_send(MovingAverageMessage(self.moving_average));
       }
-      MessageResult( self.moving_average)
+      MessageResult(self.moving_average)
     }
   }
 }
