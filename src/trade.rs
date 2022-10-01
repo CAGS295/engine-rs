@@ -1,3 +1,4 @@
+use std::os::unix::raw::time_t;
 use actix::Actor;
 use actix::Arbiter;
 use actix::Context;
@@ -28,18 +29,25 @@ impl Actor for TradeActor {
 
 #[derive(Message)]
 #[rtype(result = "Result<Transaction, binance::errors::Error>")]
-struct Buy {
-  symbol: String,
-  quantity: f64,
-  price: f64,
+pub struct Buy {
+  pub symbol: String,
+  pub quantity: f64,
+  pub price: f64,
+  pub timestamp: time_t,
 }
 
 #[derive(Message)]
 #[rtype(result = "Result<Transaction, binance::errors::Error>")]
-struct Sell {
-  symbol: String,
-  quantity: f64,
-  price: f64,
+pub struct Sell {
+  pub symbol: String,
+  pub quantity: f64,
+  pub price: f64,
+  pub timestamp: time_t,
+}
+
+pub struct Hold {
+  pub symbol: String,
+  pub timestamp: time_t,
 }
 
 impl Handler<Buy> for TradeActor {
