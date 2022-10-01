@@ -1,4 +1,3 @@
-use std::os::unix::raw::time_t;
 use actix::Actor;
 use actix::Arbiter;
 use actix::Context;
@@ -9,6 +8,7 @@ use binance::api::*;
 use binance::config::Config;
 use binance::rest_model::Transaction;
 use binance::rest_model::{OrderSide, OrderType, TimeInForce};
+use chrono::{DateTime, Utc};
 use std::sync::mpsc::channel;
 
 struct TradeActor {
@@ -33,7 +33,7 @@ pub struct Buy {
   pub symbol: String,
   pub quantity: f64,
   pub price: f64,
-  pub timestamp: time_t,
+  pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Message)]
@@ -42,12 +42,12 @@ pub struct Sell {
   pub symbol: String,
   pub quantity: f64,
   pub price: f64,
-  pub timestamp: time_t,
+  pub timestamp: DateTime<Utc>,
 }
 
 pub struct Hold {
   pub symbol: String,
-  pub timestamp: time_t,
+  pub timestamp: DateTime<Utc>,
 }
 
 impl Handler<Buy> for TradeActor {
@@ -131,6 +131,7 @@ mod test {
         symbol: "BTCUSDT".to_string(),
         quantity: 0.001,
         price: 10000.0,
+        timestamp: Utc::now(),
       })
       .await;
     println!("{:?}", res);
@@ -147,6 +148,7 @@ mod test {
         symbol: "BTCUSDT".to_string(),
         quantity: 0.001,
         price: 10000.0,
+        timestamp: Utc::now(),
       })
       .await;
     assert!(res.is_ok());

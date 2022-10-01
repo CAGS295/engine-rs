@@ -3,7 +3,7 @@ use std::{io, thread};
 use actix_web::web::Bytes;
 use awc::ws;
 use engine_rs::binance_websocket::{
-  open_partial_depth_stream, open_user_data_stream,
+  open_book_ticket_stream, open_user_data_stream,
 };
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::{select, sync::mpsc};
@@ -33,7 +33,7 @@ async fn main() {
   let user_stream = open_user_data_stream();
   let (user_res, mut user_ws) = user_stream.await.unwrap();
 
-  let book_stream = open_partial_depth_stream("btcusdt");
+  let book_stream = open_book_ticket_stream("btcusdt");
   let (res, mut ws) = book_stream.await.unwrap();
 
   log::info!("response: {res:?}");

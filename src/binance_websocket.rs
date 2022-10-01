@@ -24,16 +24,18 @@ fn build_client() -> awc::Client {
   awc::Client::builder().connector(conn).finish()
 }
 
-// https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams
+// https://binance-docs.github.io/apidocs/spot/en/#individual-symbol-book-ticker-streams
 // example symbol = btcusdt
-pub async fn open_partial_depth_stream(
+pub async fn open_book_ticket_stream(
   symbol: &str,
 ) -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
   let client = build_client();
 
   client
     //.ws(format!("wss://stream.binance.com:9443/ws/{symbol:}@depth5"))
-    .ws(format!("wss://testnet.binance.vision/ws/{symbol:}@depth5"))
+    .ws(format!(
+      "wss://testnet.binance.vision/ws/{symbol:}@bookTicker"
+    ))
     .connect()
     .await
 }
@@ -67,22 +69,29 @@ struct StreamTicker {
 #[derive(Message)]
 #[rtype(result = "()")]
 #[derive(Deserialize, Debug, Clone)]
-struct TickerMessage {
-  u: u64,
-  s: String,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  b: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  B: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  a: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  A: f64,
+pub struct TickerMessage {
+  #[serde(deserialize_with = "deserialize_from_str", rename = "u")]
+  pub update_id: u64,
+
+  #[serde(deserialize_with = "deserialize_from_str", rename = "s")]
+  pub symbol: String,
+
+  #[serde(deserialize_with = "deserialize_from_str", rename = "b")]
+  pub best_bid_price: f64,
+
+  #[serde(deserialize_with = "deserialize_from_str", rename = "B")]
+  pub best_bid_qty: f64,
+
+  #[serde(deserialize_with = "deserialize_from_str", rename = "a")]
+  pub best_ask_price: f64,
+
+  #[serde(deserialize_with = "deserialize_from_str", rename = "A")]
+  pub best_ask_qty: f64,
 }
 
 impl StreamTicker {
   async fn run(self, symbol: &str) {
-    let result = open_partial_depth_stream(symbol).await;
+    let result = open_book_ticket_stream(symbol).await;
     let (_res, mut ws) = result.unwrap();
     while let Some(msg) = ws.next().await {
       match msg {
