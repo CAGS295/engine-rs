@@ -72,7 +72,6 @@ impl Handler<MidPrice> for MovingAverage {
   }
 }
 
-
 #[cfg(test)]
 use crate::assert_matches;
 

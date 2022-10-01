@@ -7,7 +7,7 @@ use crate::{Actor, Context, Handler, Message, Recipient};
 pub struct MidPrice(pub f64);
 
 #[derive(Debug)]
-pub enum MidPriceResponse{
+pub enum MidPriceResponse {
   MovingAverage(f64),
   Policy(f64),
 }
