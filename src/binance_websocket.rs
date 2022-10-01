@@ -33,7 +33,9 @@ pub async fn open_partial_depth_stream(
 
   client
     //.ws(format!("wss://stream.binance.com:9443/ws/{symbol:}@depth5"))
-    .ws(format!("wss://testnet.binance.vision/ws/{symbol:}@bookTicker"))
+    .ws(format!(
+      "wss://testnet.binance.vision/ws/{symbol:}@bookTicker"
+    ))
     .connect()
     .await
 }
