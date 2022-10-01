@@ -68,9 +68,9 @@ async fn positive() {
   let res = addr.send(Double(3.)).await.unwrap();
   assert_eq!(res, 2.);
   let res = addr.send(Double(4.)).await.unwrap();
-  assert_eq!(res, 2.);
+  assert_eq!(res, 3.);
   let res = addr.send(Double(5.)).await.unwrap();
-  assert_eq!(res, 2.);
+  assert_eq!(res, 4.);
   let res = addr.send(Double(6.)).await.unwrap();
   assert_eq!(res, 5.);
 }
