@@ -4,7 +4,10 @@ use crate::{Actor, Context, Handler, Message, Recipient};
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct MidPrice(pub f64);
+pub struct MidPrice {
+  pub price: f64,
+  pub symbol: String,
+}
 
 #[derive(Message)]
 #[rtype(result = "MidPrice")]
@@ -40,7 +43,10 @@ impl Handler<TickerMessage> for MidPriceActor {
     let TickerMessage { b, a, .. } = msg;
     let price = (b + a) / 2f64;
     for consumer in &self.subscribers {
-      consumer.do_send(MidPrice(price));
+      consumer.do_send(MidPrice {
+        price,
+        symbol: msg.symbol,
+      });
     }
     MessageResult(price)
   }
