@@ -43,7 +43,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
     if empty_buffer_length > 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
 
-      return 0.;
+      0.
     } else if empty_buffer_length == 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
       self.moving_average =
@@ -53,7 +53,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
         s.do_send(MovingAverageMessage(self.moving_average));
       }
 
-      return self.moving_average;
+      self.moving_average
     } else {
       self.ring_buffer.remove(0);
       self.ring_buffer.push(msg.0);
