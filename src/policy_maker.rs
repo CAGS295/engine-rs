@@ -91,7 +91,7 @@ impl PolicyMaker {
   //
   // else, hold and do nothing
   fn make_policy_decision(&self, frame: &PolicyFrame) -> PolicyDecision {
-    return if should_buy(frame) {
+    if should_buy(frame) {
       PolicyDecision::BuyAction(Buy {
         symbol: frame.symbol.clone(),
         quantity: 0.1,
@@ -110,7 +110,7 @@ impl PolicyMaker {
         symbol: frame.symbol.clone(),
         timestamp: Utc::now(),
       })
-    };
+    }
   }
 }
 
@@ -179,13 +179,13 @@ impl Handler<MovingAverageMessage> for PolicyMaker {
 }
 
 fn should_buy(frame: &PolicyFrame) -> bool {
-  is_rising_trend(&frame)
+  is_rising_trend(frame)
     && frame.moving_average_price < frame.true_price
     && !(matches!(frame.prev_decision, Some(PolicyDecision::BuyAction(_))))
 }
 
 fn should_sell(frame: &PolicyFrame) -> bool {
-  is_downward_trend(&frame)
+  is_downward_trend(frame)
     && frame.moving_average_price > frame.true_price
     && !(matches!(frame.prev_decision, Some(PolicyDecision::SellAction(_))))
 }
