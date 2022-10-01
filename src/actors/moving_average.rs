@@ -107,7 +107,7 @@ async fn positive() {
     .await
     .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
-    assert_eq!(f, 0.)
+    assert_eq!(f, 2.)
   });
   let res = addr
     .send(MidPrice {
@@ -117,7 +117,7 @@ async fn positive() {
     .await
     .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
-    assert_eq!(f, 0.)
+    assert_eq!(f, 3.)
   });
   let res = addr
     .send(MidPrice {
@@ -127,7 +127,7 @@ async fn positive() {
     .await
     .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
-    assert_eq!(f, 0.)
+    assert_eq!(f, 4.)
   });
   let res = addr
     .send(MidPrice {
@@ -137,6 +137,6 @@ async fn positive() {
     .await
     .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
-    assert_eq!(f, 0.)
+    assert_eq!(f, 5.)
   });
 }
