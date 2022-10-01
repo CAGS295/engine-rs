@@ -35,17 +35,20 @@ impl Handler<Double> for MovingAverage {
   fn handle(&mut self, msg: Double, _ctx: &mut Context<Self>) -> Self::Result {
     let empty_buffer_length =
       self.ring_buffer.iter().filter(|&n| *n == 0.).count();
-    println!(
-      "this is ring buffer {:?}, this is empty: {}",
-      self.ring_buffer, empty_buffer_length
-    );
+
     if empty_buffer_length > 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
+
       return 0.;
     } else if empty_buffer_length == 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
       self.moving_average =
         self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
+
+      for s in &self.subscribers {
+        s.do_send(Double(self.moving_average));
+      }
+
       return self.moving_average;
     } else {
       self.ring_buffer.remove(0);
