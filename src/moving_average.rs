@@ -1,26 +1,24 @@
 use actix::{Actor, Context, Handler, Recipient};
 
-use crate::util::Double;
+use crate::util::MovingAverageMessage;
 
 // Moving average is 0 if number of received messages
 // is not a multiple of the interval_length
 pub struct MovingAverage {
   moving_average: f64,
-  partial_sum: f64,
-  current_interval: usize,
+  ring_buffer: Vec<f64>,
   interval_length: usize,
-  subscribers: Vec<Recipient<Double>>,
+  subscribers: Vec<Recipient<MovingAverageMessage>>,
 }
 
 impl MovingAverage {
   pub fn new(
     interval_length: usize,
-    subscribers: Vec<Recipient<Double>>,
+    subscribers: Vec<Recipient<MovingAverageMessage>>,
   ) -> Self {
     Self {
       moving_average: 0.,
-      partial_sum: 0.,
-      current_interval: 0,
+      ring_buffer: vec![0.; interval_length],
       interval_length,
       subscribers,
     }
@@ -31,29 +29,42 @@ impl Actor for MovingAverage {
   type Context = Context<Self>;
 }
 
-impl Handler<Double> for MovingAverage {
+impl Handler<MovingAverageMessage> for MovingAverage {
   type Result = f64;
 
-  fn handle(&mut self, msg: Double, _ctx: &mut Context<Self>) -> Self::Result {
-    self.current_interval += 1;
-    self.current_interval %= self.interval_length;
-    self.partial_sum += msg.0;
+  fn handle(
+    &mut self,
+    msg: MovingAverageMessage,
+    _ctx: &mut Context<Self>,
+  ) -> Self::Result {
+    let empty_buffer_length =
+      self.ring_buffer.iter().filter(|&n| *n == 0.).count();
 
-    if self.current_interval == 1 {
-      self.partial_sum = msg.0;
-    }
+    if empty_buffer_length > 1 {
+      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
 
-    if self.current_interval == 0 {
-      self.partial_sum /= self.interval_length as f64;
+      0.
+    } else if empty_buffer_length == 1 {
+      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
+      self.moving_average =
+        self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
       for s in &self.subscribers {
-        s.do_send(Double(self.partial_sum));
+        s.do_send(MovingAverageMessage(self.moving_average));
       }
 
-      self.moving_average = self.partial_sum;
-    }
+      self.moving_average
+    } else {
+      self.ring_buffer.remove(0);
+      self.ring_buffer.push(msg.0);
+      self.moving_average =
+        self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
-    self.moving_average
+      for s in &self.subscribers {
+        s.do_send(MovingAverageMessage(self.moving_average));
+      }
+      self.moving_average
+    }
   }
 }
 
@@ -61,16 +72,16 @@ impl Handler<Double> for MovingAverage {
 async fn positive() {
   let addr = MovingAverage::new(3, vec![]).start();
 
-  let res = addr.send(Double(1.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(1.)).await.unwrap();
   assert_eq!(res, 0.);
-  let res = addr.send(Double(2.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(2.)).await.unwrap();
   assert_eq!(res, 0.);
-  let res = addr.send(Double(3.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(3.)).await.unwrap();
   assert_eq!(res, 2.);
-  let res = addr.send(Double(4.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(4.)).await.unwrap();
   assert_eq!(res, 3.);
-  let res = addr.send(Double(5.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(5.)).await.unwrap();
   assert_eq!(res, 4.);
-  let res = addr.send(Double(6.)).await.unwrap();
+  let res = addr.send(MovingAverageMessage(6.)).await.unwrap();
   assert_eq!(res, 5.);
 }
