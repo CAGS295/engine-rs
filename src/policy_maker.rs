@@ -2,16 +2,15 @@ use crate::actors::mid_price::MidPrice;
 use crate::binance_websocket::TickerMessage;
 use crate::trade::{Buy, Hold, Sell};
 use crate::util::{deserialize_from_str, MovingAverageMessage};
-use actix::{Actor, Context, Handler, Message};
+use actix::{Actor, Context, Handler, Message, Recipient};
 use chrono::Utc;
 use serde::Deserialize;
 
 pub struct PolicyMaker {
-  moving_average_stream: f64,
-  true_price_stream: f64,
   current_true_price: f64,
   prev_true_price: f64,
   frame: PolicyFrame,
+  recipients: Vec<Recipient<Buy>>, // TODO
 }
 
 impl Actor for PolicyMaker {
@@ -37,6 +36,7 @@ pub struct PolicyFrame {
   prev_decision: Option<PolicyDecision>,
 }
 
+#[derive(Debug)]
 enum PolicyDecision {
   BuyAction(Buy),
   SellAction(Sell),
@@ -44,23 +44,42 @@ enum PolicyDecision {
 }
 
 impl PolicyMaker {
-  fn new() -> Self {
+  fn new(recipients: Vec<Recipient<Buy>>) -> Self {
     Self {
-      moving_average_stream: 0.,
-      true_price_stream: 0.,
-      current_true_price: 0.,
-      prev_true_price: 0.,
+      current_true_price: 0.0,
+      prev_true_price: 0.0,
       frame: PolicyFrame {
-        symbol: todo!(),
-        moving_average_gradient: todo!(),
-        true_price_gradient: todo!(),
-        moving_average_price: todo!(),
-        true_price: todo!(),
-        prev_decision: todo!(),
+        symbol: "".to_string(),
+        moving_average_gradient: 0.0,
+        true_price_gradient: 0.0,
+        moving_average_price: 0.0,
+        true_price: 0.0,
+        prev_decision: None,
       },
+      recipients,
     }
   }
   async fn run(self) {}
+
+  fn propagate_decision(&self, decision: PolicyDecision) {
+    match decision {
+      PolicyDecision::BuyAction(buy) => {
+        for recipient in self.recipients.iter() {
+          recipient.do_send(buy.clone());
+        }
+      }
+      _ => {} //PolicyDecision::SellAction(sell) => {
+              //  for recipient in self.recipients {
+              //    recipient.do_send(sell);
+              //  }
+              //}
+              //PolicyDecision::HoldAction(hold) => {
+              //  for recipient in self.recipients {
+              //    recipient.do_send(hold);
+              //  }
+              //}
+    }
+  }
 
   // if moving average and true price are trending upwards,
   // and moving average is below true price,
@@ -116,6 +135,28 @@ pub struct MovingMessage {
   #[serde(deserialize_with = "deserialize_from_str", rename = "A")]
   pub best_ask_qty: f64,
 }
+
+impl Handler<MidPrice> for PolicyMaker {
+  type Result = ();
+  // Handle true price (TickerMessage), always keep the latest true price
+  // The actual decision making is done when handling moving average message
+  fn handle(&mut self, msg: MidPrice, _ctx: &mut Context<Self>) {
+    let prev_true_price = self.current_true_price;
+    self.current_true_price = msg.price;
+
+    let frame = PolicyFrame {
+      true_price_gradient: self.current_true_price - prev_true_price,
+      true_price: self.current_true_price,
+      symbol: msg.symbol,
+      prev_decision: self.frame.prev_decision.take(),
+      // TODO: update
+      moving_average_gradient: 0.,
+      moving_average_price: 0.,
+    };
+    self.frame = frame;
+  }
+}
+
 impl Handler<MovingAverageMessage> for PolicyMaker {
   type Result = f64;
   // Handle moving average message. Receive message then make a policy decision
@@ -130,7 +171,9 @@ impl Handler<MovingAverageMessage> for PolicyMaker {
       msg.0 - self.frame.moving_average_price;
     self.frame.moving_average_price = msg.0;
 
-    self.make_policy_decision(&self.frame);
+    let decision = self.make_policy_decision(&self.frame);
+    log::error!("Decision: {:?}", decision);
+    self.propagate_decision(decision);
     return msg.0;
   }
 }
@@ -157,22 +200,72 @@ fn is_downward_trend(frame: &PolicyFrame) -> bool {
 
 #[cfg(test)]
 mod test {
+  use crate::actors::mid_price::MidPrice;
+  use crate::util::MovingAverageMessage;
+
   use super::PolicyDecision;
   use super::PolicyFrame;
   use super::PolicyMaker;
 
   use super::{Buy, Hold, Sell};
+  use crate::trade::TradeActor;
   use actix::Actor;
+  use actix::Arbiter;
   use chrono::Utc;
 
-  fn test_policy() {
-    let sut = PolicyMaker::new();
+  #[actix_rt::test]
+  async fn test_policy_buy() {
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+    let arbiter = Arbiter::new();
+    let trade_actor = TradeActor { arbiter }.start().recipient();
+    let sut = PolicyMaker::new(vec![trade_actor]);
     let addr = sut.start();
-    //addr.send()
+    addr.do_send(MidPrice {
+      symbol: "BTCUSDT".to_string(),
+      price: 100.,
+    });
+    addr.send(MovingAverageMessage(10.)).await;
+
+    addr
+      .send(MidPrice {
+        symbol: "BTCUSDT".to_string(),
+        price: 1000.,
+      })
+      .await;
+    addr.do_send(MovingAverageMessage(100.));
+    loop {
+      //println!("waiting");
+    }
   }
 
-  #[actix_rt::test]
+  #[test]
   fn test_should_buy() {
+    let sell = Sell {
+      symbol: "btcusdt".to_string(),
+      quantity: 0.1,
+      price: 10.0,
+      timestamp: Utc::now(),
+    };
+
+    let frame = PolicyFrame {
+      symbol: "btcusdt".to_string(),
+      moving_average_gradient: 1.0,
+      true_price_gradient: 1.0,
+      moving_average_price: 10.0,
+      true_price: 20.0,
+      prev_decision: Some(PolicyDecision::SellAction(sell)),
+    };
+
+    let result = super::should_buy(&frame);
+    assert_eq!(
+      result, true,
+      "True price trending upwards and higher than avg price, should buy"
+    );
+  }
+
+  #[test]
+  fn test_not_should_buy_again() {
     let buy = Buy {
       symbol: "btcusdt".to_string(),
       quantity: 0.1,
@@ -182,11 +275,17 @@ mod test {
 
     let frame = PolicyFrame {
       symbol: "btcusdt".to_string(),
-      moving_average_gradient: 2.0,
-      true_price_gradient: 3.0,
+      moving_average_gradient: 1.0,
+      true_price_gradient: 1.0,
       moving_average_price: 10.0,
-      true_price: 10.0,
+      true_price: 20.0,
       prev_decision: Some(PolicyDecision::BuyAction(buy)),
     };
+
+    let result = super::should_buy(&frame);
+    assert_eq!(
+      result, false,
+      "Prev decision was already buy, should not buy again"
+    );
   }
 }

@@ -11,8 +11,8 @@ use binance::rest_model::{OrderSide, OrderType, TimeInForce};
 use chrono::{DateTime, Utc};
 use std::sync::mpsc::channel;
 
-struct TradeActor {
-  arbiter: Arbiter,
+pub struct TradeActor {
+  pub arbiter: Arbiter,
 }
 
 impl Actor for TradeActor {
@@ -27,7 +27,7 @@ impl Actor for TradeActor {
   }
 }
 
-#[derive(Message)]
+#[derive(Message, Clone, Debug)]
 #[rtype(result = "Result<Transaction, binance::errors::Error>")]
 pub struct Buy {
   pub symbol: String,
@@ -36,7 +36,7 @@ pub struct Buy {
   pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Message)]
+#[derive(Message, Debug)]
 #[rtype(result = "Result<Transaction, binance::errors::Error>")]
 pub struct Sell {
   pub symbol: String,
@@ -45,6 +45,7 @@ pub struct Sell {
   pub timestamp: DateTime<Utc>,
 }
 
+#[derive(Debug)]
 pub struct Hold {
   pub symbol: String,
   pub timestamp: DateTime<Utc>,
@@ -54,6 +55,7 @@ impl Handler<Buy> for TradeActor {
   type Result = Result<Transaction, binance::errors::Error>;
 
   fn handle(&mut self, msg: Buy, _ctx: &mut Context<Self>) -> Self::Result {
+    log::info!("TRADE BUY");
     let (tx, rx) = channel();
 
     let task = async move {
