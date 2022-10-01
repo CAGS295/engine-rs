@@ -2,7 +2,9 @@ use std::{io, thread};
 
 use actix_web::web::Bytes;
 use awc::ws;
-use engine_rs::binance_websocket::open_partial_depth_stream;
+use engine_rs::binance_websocket::{
+  open_partial_depth_stream, open_user_data_stream,
+};
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio::{select, sync::mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
@@ -28,14 +30,34 @@ async fn main() {
     cmd_tx.send(cmd).unwrap();
   });
 
-  let result = open_partial_depth_stream("btcusdt");
-  let (res, mut ws) = result.await.unwrap();
+  let user_stream = open_user_data_stream();
+  let (user_res, mut user_ws) = user_stream.await.unwrap();
 
-  log::debug!("response: {res:?}");
+  let book_stream = open_partial_depth_stream("btcusdt");
+  let (res, mut ws) = book_stream.await.unwrap();
+
+  log::info!("response: {res:?}");
+  log::info!("user response: {user_res:?}");
   log::info!("connected; server will echo messages sent");
 
   loop {
     select! {
+        Some(msg) = user_ws.next() => {
+            match msg {
+                Ok(ws::Frame::Text(txt)) => {
+                    // log echoed messages from server
+                    log::info!("User Data: {txt:?}")
+                }
+
+                Ok(ws::Frame::Ping(_)) => {
+                    // respond to ping probes
+                    user_ws.send(ws::Message::Pong(Bytes::new())).await.unwrap();
+                }
+
+                _ => {}
+            }
+        }
+
         Some(msg) = ws.next() => {
             match msg {
                 Ok(ws::Frame::Text(txt)) => {
