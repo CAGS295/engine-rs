@@ -28,32 +28,43 @@ async fn main() {
         cmd_tx.send(cmd).unwrap();
     });
 
-    let bytes = open_user_data_stream().await.unwrap();
-    log::info!("bytes: {:?}", bytes);
+    let user_stream = open_user_data_stream();
+    let (user_res, mut user_ws) = user_stream.await.unwrap();
 
-    let stream = open_partial_depth_stream("btcusdt");
-    let (res, mut ws) = stream.await.unwrap();
+    let book_stream = open_partial_depth_stream("btcusdt");
+    let (res, mut ws) = book_stream.await.unwrap();
 
-    log::debug!("response: {res:?}");
+    log::info!("response: {res:?}");
+    log::info!("user response: {user_res:?}");
     log::info!("connected; server will echo messages sent");
 
     loop {
         select! {
-            Some(msg) = ws.next() => {
+            Some(msg) = user_ws.next() => {
                 match msg {
                     Ok(ws::Frame::Text(txt)) => {
                         // log echoed messages from server
-                        log::info!("Server: {txt:?}")
+                        log::info!("User Data: {txt:?}")
                     }
 
-                    Ok(ws::Frame::Ping(_)) => {
-                        // respond to ping probes
-                        ws.send(ws::Message::Pong(Bytes::new())).await.unwrap();
-                    }
-
-                    _ => {}
+                    _ => log::info!("User Data Empty")
                 }
             }
+            // Some(msg) = ws.next() => {
+            //     match msg {
+            //         Ok(ws::Frame::Text(txt)) => {
+            //             // log echoed messages from server
+            //             log::info!("Server: {txt:?}")
+            //         }
+            //
+            //         Ok(ws::Frame::Ping(_)) => {
+            //             // respond to ping probes
+            //             ws.send(ws::Message::Pong(Bytes::new())).await.unwrap();
+            //         }
+            //
+            //         _ => {}
+            //     }
+            // }
 
             Some(cmd) = cmd_rx.next() => {
                 if cmd.is_empty() {

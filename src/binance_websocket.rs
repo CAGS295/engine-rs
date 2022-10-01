@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use actix_codec::{Decoder, Framed};
 use actix_web::dev::Payload;
 use actix_web::error::PayloadError;
@@ -5,18 +6,14 @@ use actix_web::web::Bytes;
 use awc::{BoxedSocket, ClientResponse};
 use awc::error::{SendRequestError, WsClientError};
 use awc::ws::Codec;
+use binance::account::Account;
+use binance::api::Binance;
+use binance::config::Config;
+use binance::rest_model::UserDataStream;
+use binance::userstream::UserStream;
+use binance::util::build_signed_request;
+use dotenv::dotenv;
 use openssl::ssl::{SslConnector, SslMethod};
-use serde::Deserialize;
-
-const BINANCE_API_KEY: &str = "ShI5Z0Ee494UQBSmutK47UoInUIYxiMBdPeZgWOq6UgTzNwIraEGj72zak0KaOT8";
-const BINANCE_SECRET_KEY: &str = "kYBnxjKd3nUJxdo7OiwU8cERfHmYNN1iHE3f1A9iD9BtVJ6DRfNYQSWcbvZvgnnT";
-const BINANCE_BASE_URL: &str = "https://api.binance.com";
-
-
-#[derive(Deserialize)]
-struct UserDataStreamBody {
-    listenKey: String
-}
 
 fn build_client() -> awc::Client {
     let ssl = SslConnector::builder(SslMethod::tls()).unwrap().build();
@@ -38,13 +35,17 @@ pub async fn open_partial_depth_stream(symbol: &str) -> Result<(ClientResponse, 
 // https://binance-docs.github.io/apidocs/spot/en/#user-data-streams
 // Calls Binance REST API endpoint to get a listenKey, then use the listenKey to open a WebSocket stream
 // In theory, this will take care of keeping the stream alive by sending back Ping/Keep-alive requests
-pub async fn open_user_data_stream() -> Result<Bytes, PayloadError> {
-    let url = BINANCE_BASE_URL.to_owned() + "/api/v3/userDataStream";
+pub async fn open_user_data_stream() -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
+    dotenv().ok();
+    let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
+    let answer: UserDataStream = user_stream.start().await.map_err(|_| WsClientError::MissingConnectionHeader)?;
+    let listen_key: String = answer.listen_key;
+    println!("Listen key: {:?}", listen_key);
     let client = build_client();
-    let request = client.post(url).insert_header(("X-MBX-APIKEY", BINANCE_API_KEY));
-    let mut response = request.send().await.map_err(|_| PayloadError::UnknownLength)?;
-    let data = response.body().await?;
-    println!("Response: {:?}", data);
-    Ok(data)
+    let result = client
+        .ws(format!("wss://stream.binance.com:9443/ws/{listen_key:}"))
+        .connect()
+        .await;
+    result
 }
 
