@@ -34,7 +34,7 @@ impl Handler<Double> for MovingAverage {
 
   fn handle(&mut self, msg: Double, _ctx: &mut Context<Self>) -> Self::Result {
     self.current_interval += 1;
-    self.current_interval = self.current_interval % self.interval_length;
+    self.current_interval %= self.interval_length;
     self.moving_average += msg.0;
 
     if self.current_interval == 1 {
