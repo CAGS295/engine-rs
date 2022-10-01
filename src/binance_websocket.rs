@@ -1,5 +1,5 @@
 use crate::util::deserialize_from_str;
-use actix::{Actor, Context, Handler, Message, Recipient};
+use actix::{Message, Recipient};
 use actix_codec::Framed;
 
 use awc::error::WsClientError;
@@ -62,79 +62,53 @@ pub async fn open_user_data_stream(
     .await
 }
 
-struct StreamTicker {
+#[allow(non_snake_case)]
+#[derive(Message)]
+#[rtype(result = "f64")]
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct TickerMessage {
+  pub u: u64,
+  pub s: String,
+  #[serde(deserialize_with = "deserialize_from_str")]
+  pub b: f64,
+  #[serde(deserialize_with = "deserialize_from_str")]
+  pub B: f64,
+  #[serde(deserialize_with = "deserialize_from_str")]
+  pub a: f64,
+  #[serde(deserialize_with = "deserialize_from_str")]
+  pub A: f64,
+}
+
+#[derive(Default)]
+pub struct StreamTicker {
   recipients: Vec<Recipient<TickerMessage>>,
 }
 
-#[derive(Message)]
-#[rtype(result = "()")]
-#[derive(Deserialize, Debug, Clone)]
-struct TickerMessage {
-  u: u64,
-  s: String,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  b: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  B: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  a: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  A: f64,
-}
-
 impl StreamTicker {
-  async fn run(self, symbol: &str) {
+  pub fn new(recipients: Vec<Recipient<TickerMessage>>) -> Self {
+    Self { recipients }
+  }
+
+  pub async fn run(self, symbol: &str) {
     let result = open_partial_depth_stream(symbol).await;
-    let (_res, mut ws) = result.unwrap();
+
+    let (_, mut ws) = result.unwrap();
+
     while let Some(msg) = ws.next().await {
-      match msg {
-        Ok(ws::Frame::Text(txt)) => {
-          let v: TickerMessage = serde_json::from_slice(&txt).unwrap();
-          log::info!("Server: {v:?}");
-          self.recipients.iter().for_each(|r| r.do_send(v.clone()));
+      if let Ok(ws::Frame::Text(txt)) = msg {
+        match serde_json::from_slice::<TickerMessage>(&txt) {
+          Ok(v) => {
+            log::info!("Stream ticker received: {v:?}");
+
+            for r in &self.recipients {
+              r.do_send(v.clone());
+            }
+          }
+          Err(e) => {
+            log::error!("Stream ticker couldn't deserialize message: {txt:?}. Error: {e:?}");
+          }
         }
-        _ => {}
       }
     }
-  }
-}
-
-struct DActor {
-  rcvd: bool,
-}
-impl Actor for DActor {
-  type Context = Context<Self>;
-
-  fn started(&mut self, _ctx: &mut Context<Self>) {
-    log::info!("Actor is alive");
-  }
-
-  fn stopped(&mut self, _ctx: &mut Context<Self>) {
-    println!("Actor is stopped");
-  }
-}
-
-impl Handler<TickerMessage> for DActor {
-  type Result = ();
-  fn handle(&mut self, msg: TickerMessage, _ctx: &mut Context<Self>) {
-    log::error!("Ticker msg received: {:?}", msg);
-    self.rcvd = true;
-  }
-}
-#[cfg(test)]
-mod test {
-  use super::*;
-  use dotenv::dotenv;
-  #[actix_rt::test]
-  async fn test_open_partial_depth_stream() {
-    dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    let dummy_actor = DActor { rcvd: false };
-    let act_rcv = dummy_actor.start().recipient();
-    let sut = StreamTicker {
-      recipients: vec![act_rcv],
-    };
-    actix::spawn(sut.run("btcusdt")).await.unwrap();
-    loop {}
   }
 }
