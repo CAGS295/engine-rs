@@ -1,73 +1,20 @@
-use crate::util::deserialize_from_str;
+use crate::util::{deserialize_from_str, tls_web_client};
 use actix::{Message, Recipient};
 use actix_codec::Framed;
 
+use awc::Client;
 use awc::error::WsClientError;
 use awc::ws;
 use awc::ws::Codec;
-use awc::{BoxedSocket, ClientResponse};
+use awc::BoxedSocket;
 use futures_util::StreamExt;
 
 use binance::api::Binance;
 use binance::config::Config;
-use binance::rest_model::UserDataStream;
 use binance::userstream::UserStream;
 
-use openssl::ssl::{SslConnector, SslMethod};
 use serde::Deserialize;
 use serde_json;
-
-fn build_client() -> awc::Client {
-  let ssl = SslConnector::builder(SslMethod::tls()).unwrap().build();
-  let conn = awc::Connector::new().openssl(ssl);
-  awc::Client::builder().connector(conn).finish()
-}
-
-// https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams
-// example symbol = btcusdt
-pub async fn open_partial_depth_stream(
-  symbol: &str,
-) -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
-  let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
-
-  let answer: UserDataStream = user_stream
-    .start()
-    .await
-    .map_err(|_| WsClientError::MissingConnectionHeader)?;
-
-  let listen_key: String = answer.listen_key;
-
-  let client = build_client();
-
-  client
-    .ws(format!(
-      "wss://testnet.binance.vision/stream?streams={symbol:}@bookTicker/{listen_key:}"
-    ))
-    .connect()
-    .await
-}
-
-// https://binance-docs.github.io/apidocs/spot/en/#user-data-streams
-// Calls Binance REST API endpoint to get a listenKey, then use the listenKey to open a WebSocket stream
-// In theory, this will take care of keeping the stream alive by sending back Ping/Keep-alive requests
-pub async fn open_user_data_stream(
-) -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
-  let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
-
-  let answer: UserDataStream = user_stream
-    .start()
-    .await
-    .map_err(|_| WsClientError::MissingConnectionHeader)?;
-
-  let listen_key: String = answer.listen_key;
-
-  let client = build_client();
-
-  client
-    .ws(format!("wss://testnet.binance.vision/ws/{listen_key:}"))
-    .connect()
-    .await
-}
 
 #[derive(Deserialize)]
 struct BinanceMessage {
@@ -118,6 +65,7 @@ pub struct Balance {
 
 #[derive(Default)]
 pub struct BinanceIngestor {
+  client: Client,
   book_ticker_recipients: Vec<Recipient<TickerMessage>>,
   user_data_account_update_recipients: Vec<Recipient<AccountUpdateMessage>>,
 }
@@ -128,15 +76,32 @@ impl BinanceIngestor {
     user_data_account_update_recipients: Vec<Recipient<AccountUpdateMessage>>,
   ) -> Self {
     Self {
+      client: tls_web_client(),
       book_ticker_recipients,
       user_data_account_update_recipients,
     }
   }
 
-  pub async fn run(self, symbol: &str) {
-    let result = open_partial_depth_stream(symbol).await;
+  async fn get_stream(&self) -> Result<Framed<BoxedSocket, Codec>, WsClientError> {
+    let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
 
-    let (_, mut ws) = result.unwrap();
+    let listen_key = user_stream
+      .start()
+      .await
+      .map_err(|_| WsClientError::MissingConnectionHeader)?
+      .listen_key;
+
+    self.client
+      .ws(format!(
+        "wss://testnet.binance.vision/stream?streams=btcusdt@bookTicker/{listen_key:}"
+      ))
+      .connect()
+      .await
+      .map(|x| x.1)
+  }
+
+  pub async fn run(self) {
+    let mut ws = self.get_stream().await.unwrap();
 
     while let Some(msg) = ws.next().await {
       if let Ok(ws::Frame::Text(txt)) = msg {

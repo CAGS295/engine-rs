@@ -36,7 +36,7 @@ async fn test_ticker() {
 
   let st = BinanceIngestor::new(vec![rsa.clone().recipient()], vec![]);
 
-  actix::spawn(st.run("btcusdt"));
+  actix::spawn(st.run());
 
   loop {
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
