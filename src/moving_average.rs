@@ -59,7 +59,7 @@ impl Handler<Double> for MovingAverage {
       for s in &self.subscribers {
         s.do_send(Double(self.moving_average));
       }
-      return self.moving_average;
+      self.moving_average
     }
   }
 }
