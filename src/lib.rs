@@ -1,3 +1,4 @@
+pub mod moving_average;
 pub mod risk;
 pub mod util;
 
