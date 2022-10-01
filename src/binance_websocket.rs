@@ -64,8 +64,8 @@ pub async fn open_user_data_stream(
 
 #[allow(non_snake_case)]
 #[derive(Message)]
-#[rtype(result = "()")]
-#[derive(Deserialize, Debug, Clone)]
+#[rtype(result = "f64")]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct TickerMessage {
   pub u: u64,
   pub s: String,

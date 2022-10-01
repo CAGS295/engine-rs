@@ -68,11 +68,16 @@ impl Actor for ReceivedSomethingActor {
 }
 
 impl Handler<TickerMessage> for ReceivedSomethingActor {
-  type Result = ();
+  type Result = f64;
 
-  fn handle(&mut self, msg: TickerMessage, _ctx: &mut Context<Self>) {
+  fn handle(
+    &mut self,
+    msg: TickerMessage,
+    _ctx: &mut Context<Self>,
+  ) -> Self::Result {
     log::info!("Ticker msg received: {:?}", msg);
     self.rcvd = true;
+    0.
   }
 }
 
