@@ -60,6 +60,28 @@ pub async fn open_user_data_stream(
     .await
 }
 
+// https://binance-docs.github.io/apidocs/spot/en/#user-data-streams
+// Calls Binance REST API endpoint to get a listenKey, then use the listenKey to open a WebSocket stream
+// In theory, this will take care of keeping the stream alive by sending back Ping/Keep-alive requests
+pub async fn open_user_data_stream(
+) -> Result<(ClientResponse, Framed<BoxedSocket, Codec>), WsClientError> {
+  dotenv().ok();
+  let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
+  let answer: UserDataStream = user_stream
+    .start()
+    .await
+    .map_err(|_| WsClientError::MissingConnectionHeader)?;
+  let listen_key: String = answer.listen_key;
+  println!("Listen key: {:?}", listen_key);
+  let client = build_client();
+
+  client
+    //.ws(format!("wss://stream.binance.com:9443/ws/{listen_key:}"))
+    .ws(format!("wss://testnet.binance.vision/ws/{listen_key:}"))
+    .connect()
+    .await
+}
+
 struct StreamTicker {
   recipients: Vec<Recipient<TickerMessage>>,
 }
