@@ -2,7 +2,8 @@ use crate::actors::mid_price::MidPrice;
 
 use crate::trade::{Buy, Hold, Sell};
 use crate::util::{deserialize_from_str, MovingAverageMessage};
-use actix::{Actor, Context, Handler, Message, Recipient};
+use crate::actors::mid_price::MidPriceResponse;
+use actix::{Actor, Context, Handler, Message, Recipient, MessageResult};
 use chrono::Utc;
 use serde::Deserialize;
 
@@ -119,28 +120,24 @@ impl PolicyMaker {
 pub struct MovingMessage {
   #[serde(deserialize_with = "deserialize_from_str", rename = "u")]
   pub update_id: u64,
-
   #[serde(deserialize_with = "deserialize_from_str", rename = "s")]
   pub symbol: String,
-
   #[serde(deserialize_with = "deserialize_from_str", rename = "b")]
   pub best_bid_price: f64,
-
   #[serde(deserialize_with = "deserialize_from_str", rename = "B")]
   pub best_bid_qty: f64,
-
   #[serde(deserialize_with = "deserialize_from_str", rename = "a")]
   pub best_ask_price: f64,
-
   #[serde(deserialize_with = "deserialize_from_str", rename = "A")]
   pub best_ask_qty: f64,
 }
 
 impl Handler<MidPrice> for PolicyMaker {
-  type Result = ();
+  type Result = MessageResult<MidPrice>;
+
   // Handle true price (TickerMessage), always keep the latest true price
   // The actual decision making is done when handling moving average message
-  fn handle(&mut self, msg: MidPrice, _ctx: &mut Context<Self>) {
+  fn handle(&mut self, msg: MidPrice, _ctx: &mut Context<Self>) -> Self::Result {
     let prev_true_price = self.current_true_price;
     self.current_true_price = msg.price;
 
@@ -154,6 +151,8 @@ impl Handler<MidPrice> for PolicyMaker {
       moving_average_price: 0.,
     };
     self.frame = frame;
+
+    MessageResult(MidPriceResponse::MovingAverage(0.))
   }
 }
 
