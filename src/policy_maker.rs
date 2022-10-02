@@ -200,7 +200,7 @@ mod test {
   use super::{Buy, Sell};
   use crate::trade::TradeActor;
   use actix::Actor;
-  use actix::Arbiter;
+
   use chrono::Utc;
 
   #[actix_rt::test]
