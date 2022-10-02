@@ -1,8 +1,8 @@
-use crate::actors::mid_price::MidPrice;
-
-use crate::actors::mid_price::MidPriceResponse;
+use crate::actors::mid_price::{MidPrice, MidPriceResponse};
+use crate::actors::moving_average::MovingAverageMessage;
 use crate::trade::{Buy, Hold, Sell};
-use crate::util::{deserialize_from_str, MovingAverageMessage};
+use crate::util::deserialize_from_str;
+
 use actix::{Actor, Context, Handler, Message, MessageResult, Recipient};
 use chrono::Utc;
 use serde::Deserialize;
@@ -185,8 +185,8 @@ fn is_downward_trend(frame: &PolicyFrame) -> bool {
 
 #[cfg(test)]
 mod test {
+  use super::MovingAverageMessage;
   use crate::actors::mid_price::MidPrice;
-  use crate::util::MovingAverageMessage;
 
   use super::PolicyDecision;
   use super::PolicyFrame;
@@ -220,9 +220,6 @@ mod test {
       .await
       .unwrap();
     addr.do_send(MovingAverageMessage(100.));
-    loop {
-      //println!("waiting");
-    }
   }
 
   #[test]
@@ -244,8 +241,8 @@ mod test {
     };
 
     let result = super::should_buy(&frame);
-    assert_eq!(
-      result, true,
+    assert!(
+      result,
       "True price trending upwards and higher than avg price, should buy"
     );
   }
@@ -269,8 +266,8 @@ mod test {
     };
 
     let result = super::should_buy(&frame);
-    assert_eq!(
-      result, false,
+    assert!(
+      !result,
       "Prev decision was already buy, should not buy again"
     );
   }

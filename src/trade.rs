@@ -81,6 +81,14 @@ impl Handler<Buy> for TradeActor {
   }
 }
 
+impl Default for TradeActor {
+  fn default() -> Self {
+    Self {
+      arbiter: Arbiter::new(),
+    }
+  }
+}
+
 impl TradeActor {
   pub fn new() -> Self {
     Self {

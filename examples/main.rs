@@ -1,5 +1,5 @@
 use dotenv::dotenv;
-use engine_rs::{
+use tactix::{
   actors::{mid_price::MidPriceActor, moving_average::MovingAverageActor},
   binance_websocket::BinanceIngestor,
   policy_maker::PolicyMakerActor,

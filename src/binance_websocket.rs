@@ -7,9 +7,6 @@ use awc::ws::Codec;
 use awc::BoxedSocket;
 use awc::Client;
 use futures_util::StreamExt;
-
-use binance::api::Binance;
-
 use serde::Deserialize;
 use serde_json;
 

@@ -1,6 +1,6 @@
-use engine_rs::binance_websocket::{BinanceIngestor, TickerMessage};
-use engine_rs::risk::Drawdown;
-use engine_rs::util::Double;
+use tactix::actors::risk::Drawdown;
+use tactix::binance_websocket::{BinanceIngestor, TickerMessage};
+use tactix::util::Double;
 
 use actix::{Actor, Context, Handler, Message};
 
