@@ -1,4 +1,4 @@
-use actix::{Actor, Context, Handler, Recipient};
+use actix::{Actor, Context, Handler, MessageResult, Recipient};
 
 use crate::util::MovingAverageMessage;
 
@@ -29,12 +29,16 @@ impl Actor for MovingAverage {
   type Context = Context<Self>;
 }
 
-impl Handler<MovingAverageMessage> for MovingAverage {
-  type Result = f64;
+use crate::actors::mid_price::MidPrice;
+
+use super::mid_price::MidPriceResponse;
+
+impl Handler<MidPrice> for MovingAverage {
+  type Result = MessageResult<MidPrice>;
 
   fn handle(
     &mut self,
-    msg: MovingAverageMessage,
+    msg: MidPrice,
     _ctx: &mut Context<Self>,
   ) -> Self::Result {
     let empty_buffer_length =
@@ -43,7 +47,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
     if empty_buffer_length > 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
 
-      0.
+      MessageResult(MidPriceResponse::MovingAverage(0f64))
     } else if empty_buffer_length == 1 {
       self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
       self.moving_average =
@@ -53,7 +57,7 @@ impl Handler<MovingAverageMessage> for MovingAverage {
         s.do_send(MovingAverageMessage(self.moving_average));
       }
 
-      self.moving_average
+      MessageResult(MidPriceResponse::MovingAverage(self.moving_average))
     } else {
       self.ring_buffer.remove(0);
       self.ring_buffer.push(msg.0);
@@ -63,25 +67,40 @@ impl Handler<MovingAverageMessage> for MovingAverage {
       for s in &self.subscribers {
         s.do_send(MovingAverageMessage(self.moving_average));
       }
-      self.moving_average
+      MessageResult(MidPriceResponse::MovingAverage(self.moving_average))
     }
   }
 }
 
+#[cfg(test)]
+use crate::assert_matches;
+
 #[actix_rt::test]
 async fn positive() {
   let addr = MovingAverage::new(3, vec![]).start();
+  let res = addr.send(MidPrice(1.)).await.unwrap();
 
-  let res = addr.send(MovingAverageMessage(1.)).await.unwrap();
-  assert_eq!(res, 0.);
-  let res = addr.send(MovingAverageMessage(2.)).await.unwrap();
-  assert_eq!(res, 0.);
-  let res = addr.send(MovingAverageMessage(3.)).await.unwrap();
-  assert_eq!(res, 2.);
-  let res = addr.send(MovingAverageMessage(4.)).await.unwrap();
-  assert_eq!(res, 3.);
-  let res = addr.send(MovingAverageMessage(5.)).await.unwrap();
-  assert_eq!(res, 4.);
-  let res = addr.send(MovingAverageMessage(6.)).await.unwrap();
-  assert_eq!(res, 5.);
+  assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
+    assert_eq!(f, 0.)
+  });
+  let res = addr.send(MidPrice(2.)).await.unwrap();
+  assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
+    assert_eq!(f, 0.)
+  });
+  let res = addr.send(MidPrice(3.)).await.unwrap();
+  assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
+    assert_eq!(f, 0.)
+  });
+  let res = addr.send(MidPrice(4.)).await.unwrap();
+  assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
+    assert_eq!(f, 0.)
+  });
+  let res = addr.send(MidPrice(5.)).await.unwrap();
+  assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
+    assert_eq!(f, 0.)
+  });
+  let res = addr.send(MidPrice(6.)).await.unwrap();
+  assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
+    assert_eq!(f, 0.)
+  });
 }
