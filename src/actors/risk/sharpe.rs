@@ -1,10 +1,22 @@
 use crate::algos::single_pass::{mean, mean_centered_sum_squared, sum};
-use crate::util::{Return, SharpeRatio};
-use actix::{Actor, Context, Handler, Recipient};
+use crate::{Actor, Context, Handler, Message, MessageResult, Recipient};
 use core::marker::PhantomData;
 
-///Computes the mean average
-///Computes the standard deviation
+#[derive(Message)]
+#[rtype(result = "ReturnResponse")]
+pub struct Return(pub f64);
+
+#[derive(Debug)]
+pub enum ReturnResponse {
+  SharpeRatio(Option<f64>),
+}
+
+#[derive(Message)]
+#[rtype(result = "Option<f64>")]
+pub struct SharpeRatio(pub f64);
+
+///Computes the mean average return
+///Computes the standard deviation return
 ///Calculates the sharpe ratio
 pub struct Sharpe {
   mean: f64,
@@ -21,15 +33,19 @@ impl Sharpe {
   pub fn new(
     subscribers: Vec<Recipient<SharpeRatio>>,
     window_size: u32,
-  ) -> Self {
-    Sharpe {
-      mean: 0.,
-      s_squared: 0.,
-      cold_count: 0,
-      _p: PhantomData,
-      init_buffer: None,
-      subscribers,
-      window_size,
+  ) -> Option<Self> {
+    if window_size < 1 {
+      None
+    } else {
+      Some(Sharpe {
+        mean: 0.,
+        s_squared: 0.,
+        cold_count: 0,
+        _p: PhantomData,
+        init_buffer: None,
+        subscribers,
+        window_size,
+      })
     }
   }
 
@@ -75,15 +91,16 @@ impl Actor for Sharpe {
 
 impl Handler<Return> for Sharpe {
   //a sharpe ratio
-  type Result = f64;
+  type Result = MessageResult<Return>;
 
   fn handle(&mut self, msg: Return, _ctx: &mut Self::Context) -> Self::Result {
     if let Some(ratio) = self.update(msg.0) {
       for s in &self.subscribers {
         s.do_send(SharpeRatio(ratio));
       }
+      return MessageResult(ReturnResponse::SharpeRatio(Some(ratio)));
     }
-    msg.0
+    MessageResult(ReturnResponse::SharpeRatio(None))
   }
 }
 
@@ -92,12 +109,28 @@ impl Handler<Return> for Sharpe {
 
 #[cfg(test)]
 pub mod tests {
+  use crate::assert_matches;
+
   use super::*;
 
   #[actix_rt::test]
-  async fn dividend_is_zero() {
-    let sharpe_actor = Sharpe::new(vec![], 1);
+  async fn divisor_is_one() {
+    let sharpe_actor = Sharpe::new(vec![], 1).expect("valid args");
     let addr1 = sharpe_actor.start();
-    addr1.send(Return(1.)).await.unwrap();
+    assert_matches!(addr1.send(Return(1.)).await.unwrap(),ReturnResponse::SharpeRatio(s) =>{
+      assert_eq!(s,None);
+    });
+  }
+
+  #[actix_rt::test]
+  async fn positive() {
+    let sharpe_actor = Sharpe::new(vec![], 1).expect("valid args");
+    let addr1 = sharpe_actor.start();
+    assert_matches!(addr1.send(Return(1.)).await.unwrap(),ReturnResponse::SharpeRatio(s) =>{
+      assert_eq!(s,None);
+    });
+    assert_matches!(addr1.send(Return(2.)).await.unwrap(),ReturnResponse::SharpeRatio(s) =>{
+      assert_eq!(s,Some(3.));
+    });
   }
 }

@@ -7,9 +7,6 @@ use awc::ws::Codec;
 use awc::BoxedSocket;
 use awc::Client;
 use futures_util::StreamExt;
-
-use binance::api::Binance;
-
 use serde::Deserialize;
 use serde_json;
 
@@ -94,10 +91,7 @@ impl BinanceIngestor {
 
     self
       .client
-      .ws(
-        "wss://testnet.binance.vision/stream?streams=btcusdt@bookTicker"
-          .to_string(),
-      )
+      .ws("wss://testnet.binance.vision/stream?streams=btcusdt@bookTicker".to_string())
       .connect()
       .await
       .map(|x| x.1)

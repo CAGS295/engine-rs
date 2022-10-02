@@ -1,6 +1,8 @@
-use actix::{Actor, Context, Handler, MessageResult, Recipient};
+use actix::{Actor, Context, Handler, Message, MessageResult, Recipient};
 
-use crate::util::MovingAverageMessage;
+#[derive(Message)]
+#[rtype(result = "f64")]
+pub struct MovingAverageMessage(pub f64);
 
 // Moving average is 0 if number of received messages
 // is not a multiple of the interval_length
@@ -44,30 +46,37 @@ impl Handler<MidPrice> for MovingAverageActor {
     let empty_buffer_length =
       self.ring_buffer.iter().filter(|&n| *n == 0.).count();
 
-    if empty_buffer_length > 1 {
-      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.price;
+    match empty_buffer_length {
+      1 => {
+        self.ring_buffer[self.interval_length - empty_buffer_length] =
+          msg.price;
+        self.moving_average =
+          self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
-      MessageResult(MidPriceResponse::MovingAverage(0f64))
-    } else if empty_buffer_length == 1 {
-      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.price;
-      self.moving_average =
-        self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
+        for s in &self.subscribers {
+          s.do_send(MovingAverageMessage(self.moving_average));
+        }
 
-      for s in &self.subscribers {
-        s.do_send(MovingAverageMessage(self.moving_average));
+        MessageResult(MidPriceResponse::MovingAverage(self.moving_average))
+      }
+      0 => {
+        self.ring_buffer.remove(0);
+        self.ring_buffer.push(msg.price);
+        self.moving_average =
+          self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
+
+        for s in &self.subscribers {
+          s.do_send(MovingAverageMessage(self.moving_average));
+        }
+        MessageResult(MidPriceResponse::MovingAverage(self.moving_average))
       }
 
-      MessageResult(MidPriceResponse::MovingAverage(self.moving_average))
-    } else {
-      self.ring_buffer.remove(0);
-      self.ring_buffer.push(msg.price);
-      self.moving_average =
-        self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
+      _ => {
+        self.ring_buffer[self.interval_length - empty_buffer_length] =
+          msg.price;
 
-      for s in &self.subscribers {
-        s.do_send(MovingAverageMessage(self.moving_average));
+        MessageResult(MidPriceResponse::MovingAverage(0f64))
       }
-      MessageResult(MidPriceResponse::MovingAverage(self.moving_average))
     }
   }
 }
