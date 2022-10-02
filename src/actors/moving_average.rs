@@ -45,11 +45,11 @@ impl Handler<MidPrice> for MovingAverage {
       self.ring_buffer.iter().filter(|&n| *n == 0.).count();
 
     if empty_buffer_length > 1 {
-      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
+      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.price;
 
       MessageResult(MidPriceResponse::MovingAverage(0f64))
     } else if empty_buffer_length == 1 {
-      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.0;
+      self.ring_buffer[self.interval_length - empty_buffer_length] = msg.price;
       self.moving_average =
         self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
@@ -60,7 +60,7 @@ impl Handler<MidPrice> for MovingAverage {
       MessageResult(MidPriceResponse::MovingAverage(self.moving_average))
     } else {
       self.ring_buffer.remove(0);
-      self.ring_buffer.push(msg.0);
+      self.ring_buffer.push(msg.price);
       self.moving_average =
         self.ring_buffer.iter().sum::<f64>() / self.interval_length as f64;
 
@@ -78,28 +78,28 @@ use crate::assert_matches;
 #[actix_rt::test]
 async fn positive() {
   let addr = MovingAverage::new(3, vec![]).start();
-  let res = addr.send(MidPrice(1.)).await.unwrap();
+  let res = addr.send(MidPrice{ price: 1., symbol: "".to_owned()}).await.unwrap();
 
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice(2.)).await.unwrap();
+  let res = addr.send(MidPrice{ price: 2., symbol: "".to_owned()}).await.unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice(3.)).await.unwrap();
+  let res = addr.send(MidPrice{ price: 3., symbol: "".to_owned()}).await.unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice(4.)).await.unwrap();
+  let res = addr.send(MidPrice{ price: 4., symbol: "".to_owned()}).await.unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice(5.)).await.unwrap();
+  let res = addr.send(MidPrice{ price: 5., symbol: "".to_owned()}).await.unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice(6.)).await.unwrap();
+  let res = addr.send(MidPrice{ price: 6., symbol: "".to_owned()}).await.unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });

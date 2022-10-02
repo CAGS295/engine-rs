@@ -1,10 +1,11 @@
-use actix::MessageResult;
-
 use crate::{Actor, Context, Handler, Message, Recipient};
 
 #[derive(Message)]
 #[rtype(result = "MidPriceResponse")]
-pub struct MidPrice(pub f64);
+pub struct MidPrice {
+  pub price: f64,
+  pub symbol: String,
+}
 
 #[derive(Debug)]
 pub enum MidPriceResponse {
@@ -29,19 +30,26 @@ impl Actor for MidPriceActor {
 }
 
 impl Handler<TickerMessage> for MidPriceActor {
-  type Result = MessageResult<TickerMessage>;
+  type Result = f64;
 
   fn handle(
     &mut self,
     msg: TickerMessage,
     _ctx: &mut Self::Context,
   ) -> Self::Result {
-    let TickerMessage { b, a, .. } = msg;
-    let price = (b + a) / 2f64;
+    let TickerMessage {
+      best_bid_price,
+      best_ask_price,
+      ..
+    } = msg;
+    let price = (best_bid_price + best_ask_price) / 2f64;
     for consumer in &self.subscribers {
-      consumer.do_send(MidPrice(price));
+      consumer.do_send(MidPrice {
+        price,
+        symbol: msg.symbol.clone(),
+      });
     }
-    MessageResult(price)
+    price
   }
 }
 
@@ -55,8 +63,8 @@ mod tests {
     let addr = actor.start();
     let res = addr
       .send(TickerMessage {
-        b: 1.0,
-        a: 1.5,
+        best_bid_price: 1.0,
+        best_ask_price: 1.5,
         ..Default::default()
       })
       .await

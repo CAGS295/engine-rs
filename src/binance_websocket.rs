@@ -1,7 +1,6 @@
 use crate::util::{deserialize_from_str, tls_web_client};
 use actix::{Message, Recipient};
 use actix_codec::Framed;
-
 use awc::error::WsClientError;
 use awc::ws;
 use awc::ws::Codec;
@@ -32,16 +31,18 @@ enum BinanceMessageContent {
 #[derive(Message, Deserialize, Debug, Clone, Default)]
 #[rtype(result = "f64")]
 pub struct TickerMessage {
-  pub u: u64,
-  pub s: String,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  pub b: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  pub B: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  pub a: f64,
-  #[serde(deserialize_with = "deserialize_from_str")]
-  pub A: f64,
+  #[serde(deserialize_with = "deserialize_from_str", rename = "u")]
+  pub update_id: u64,
+  #[serde(deserialize_with = "deserialize_from_str", rename = "s")]
+  pub symbol: String,
+  #[serde(deserialize_with = "deserialize_from_str", rename = "b")]
+  pub best_bid_price: f64,
+  #[serde(deserialize_with = "deserialize_from_str", rename = "B")]
+  pub best_bid_qty: f64,
+  #[serde(deserialize_with = "deserialize_from_str", rename = "a")]
+  pub best_ask_price: f64,
+  #[serde(deserialize_with = "deserialize_from_str", rename = "A")]
+  pub best_ask_qty: f64,
 }
 
 #[allow(non_snake_case)]

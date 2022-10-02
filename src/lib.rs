@@ -9,5 +9,6 @@ pub mod test_server;
 pub mod trade;
 pub use actix::prelude::*;
 pub mod algos;
+pub mod policy_maker;
 
 pub mod actors;
