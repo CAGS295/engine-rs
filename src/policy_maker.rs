@@ -157,6 +157,9 @@ impl Handler<MovingAverageMessage> for PolicyMakerActor {
     self.frame.moving_average_price = msg.0;
 
     let decision = self.make_policy_decision(&self.frame);
+    if !(matches!(decision, PolicyDecision::HoldAction(_))) {
+      self.frame.prev_decision = Some(decision.clone());
+    }
     log::info!("Policy decided: {:?}", decision);
     self.propagate_decision(decision);
     msg.0
@@ -166,13 +169,13 @@ impl Handler<MovingAverageMessage> for PolicyMakerActor {
 fn should_buy(frame: &PolicyFrame) -> bool {
   is_rising_trend(frame)
     && frame.moving_average_price < frame.true_price
-    && !(matches!(frame.prev_decision, Some(PolicyDecision::BuyAction(_))))
+    && matches!(frame.prev_decision, Some(PolicyDecision::SellAction(_)))
 }
 
 fn should_sell(frame: &PolicyFrame) -> bool {
   is_downward_trend(frame)
     && frame.moving_average_price > frame.true_price
-    && !(matches!(frame.prev_decision, Some(PolicyDecision::SellAction(_))))
+    && matches!(frame.prev_decision, Some(PolicyDecision::BuyAction(_)))
 }
 
 fn is_rising_trend(frame: &PolicyFrame) -> bool {
