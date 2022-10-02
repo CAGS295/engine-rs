@@ -175,21 +175,12 @@ impl Handler<MovingAverageMessage> for PolicyMaker {
 
 impl Handler<ControllerCommand> for PolicyMaker {
   type Result = f64;
-  // Handle moving average message. Receive message then make a policy decision
   fn handle(
     &mut self,
     msg: ControllerCommand,
     _ctx: &mut Context<Self>,
   ) -> f64 {
-    let _prev_moving_price = self.frame.moving_average_price;
-
-    self.frame.moving_average_gradient =
-      msg.0 - self.frame.moving_average_price;
-    self.frame.moving_average_price = msg.0;
-
-    let decision = self.make_policy_decision(&self.frame);
-    log::error!("Decision: {:?}", decision);
-    self.propagate_decision(decision);
+    self.frame.artificial_spread_coefficient = msg.0;
     msg.0
   }
 }
