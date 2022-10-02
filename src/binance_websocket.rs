@@ -91,7 +91,10 @@ impl BinanceIngestor {
 
     self
       .client
-      .ws("wss://testnet.binance.vision/stream?streams=btcusdt@bookTicker".to_string())
+      .ws(
+        "wss://testnet.binance.vision/stream?streams=btcusdt@bookTicker"
+          .to_string(),
+      )
       .connect()
       .await
       .map(|x| x.1)

@@ -81,12 +81,12 @@ impl Handler<Buy> for TradeActor {
   }
 }
 
-impl Default for TradeActor{
-    fn default() -> Self {
-        Self{
-          arbiter: Arbiter::new()
-        }
+impl Default for TradeActor {
+  fn default() -> Self {
+    Self {
+      arbiter: Arbiter::new(),
     }
+  }
 }
 
 impl TradeActor {
@@ -169,7 +169,6 @@ async fn sell(
 mod test {
   use super::*;
   use dotenv::dotenv;
-  
 
   #[actix_rt::test]
   async fn test_actor_sell() {
