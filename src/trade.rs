@@ -1,5 +1,5 @@
 use actix::Actor;
-use actix::Arbiter;
+
 use actix::Context;
 use actix::Handler;
 use actix::Message;
@@ -158,7 +158,7 @@ mod test {
   #[actix_rt::test]
   async fn test_actor_sell() {
     dotenv().ok();
-    let arbiter = Arbiter::new();
+    let _arbiter = Arbiter::new();
     let trade_actor = TradeActor {}.start();
     let res = trade_actor
       .send(Sell {
@@ -175,7 +175,7 @@ mod test {
   #[actix_rt::test]
   async fn test_actor_buy() {
     dotenv().ok();
-    let arbiter = Arbiter::new();
+    let _arbiter = Arbiter::new();
     let trade_actor = TradeActor {}.start();
     let res = trade_actor
       .send(Buy {
