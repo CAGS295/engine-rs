@@ -78,28 +78,64 @@ use crate::assert_matches;
 #[actix_rt::test]
 async fn positive() {
   let addr = MovingAverage::new(3, vec![]).start();
-  let res = addr.send(MidPrice{ price: 1., symbol: "".to_owned()}).await.unwrap();
+  let res = addr
+    .send(MidPrice {
+      price: 1.,
+      symbol: "".to_owned(),
+    })
+    .await
+    .unwrap();
 
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice{ price: 2., symbol: "".to_owned()}).await.unwrap();
+  let res = addr
+    .send(MidPrice {
+      price: 2.,
+      symbol: "".to_owned(),
+    })
+    .await
+    .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice{ price: 3., symbol: "".to_owned()}).await.unwrap();
+  let res = addr
+    .send(MidPrice {
+      price: 3.,
+      symbol: "".to_owned(),
+    })
+    .await
+    .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice{ price: 4., symbol: "".to_owned()}).await.unwrap();
+  let res = addr
+    .send(MidPrice {
+      price: 4.,
+      symbol: "".to_owned(),
+    })
+    .await
+    .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice{ price: 5., symbol: "".to_owned()}).await.unwrap();
+  let res = addr
+    .send(MidPrice {
+      price: 5.,
+      symbol: "".to_owned(),
+    })
+    .await
+    .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });
-  let res = addr.send(MidPrice{ price: 6., symbol: "".to_owned()}).await.unwrap();
+  let res = addr
+    .send(MidPrice {
+      price: 6.,
+      symbol: "".to_owned(),
+    })
+    .await
+    .unwrap();
   assert_matches!(res, MidPriceResponse::MovingAverage(f) => {
     assert_eq!(f, 0.)
   });

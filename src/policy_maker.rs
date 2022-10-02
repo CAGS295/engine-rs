@@ -1,9 +1,9 @@
 use crate::actors::mid_price::MidPrice;
 
+use crate::actors::mid_price::MidPriceResponse;
 use crate::trade::{Buy, Hold, Sell};
 use crate::util::{deserialize_from_str, MovingAverageMessage};
-use crate::actors::mid_price::MidPriceResponse;
-use actix::{Actor, Context, Handler, Message, Recipient, MessageResult};
+use actix::{Actor, Context, Handler, Message, MessageResult, Recipient};
 use chrono::Utc;
 use serde::Deserialize;
 
@@ -137,7 +137,11 @@ impl Handler<MidPrice> for PolicyMaker {
 
   // Handle true price (TickerMessage), always keep the latest true price
   // The actual decision making is done when handling moving average message
-  fn handle(&mut self, msg: MidPrice, _ctx: &mut Context<Self>) -> Self::Result {
+  fn handle(
+    &mut self,
+    msg: MidPrice,
+    _ctx: &mut Context<Self>,
+  ) -> Self::Result {
     let prev_true_price = self.current_true_price;
     self.current_true_price = msg.price;
 
