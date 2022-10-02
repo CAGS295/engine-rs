@@ -4,14 +4,14 @@ use crate::util::MovingAverageMessage;
 
 // Moving average is 0 if number of received messages
 // is not a multiple of the interval_length
-pub struct MovingAverage {
+pub struct MovingAverageActor {
   moving_average: f64,
   ring_buffer: Vec<f64>,
   interval_length: usize,
   subscribers: Vec<Recipient<MovingAverageMessage>>,
 }
 
-impl MovingAverage {
+impl MovingAverageActor {
   pub fn new(
     interval_length: usize,
     subscribers: Vec<Recipient<MovingAverageMessage>>,
@@ -25,7 +25,7 @@ impl MovingAverage {
   }
 }
 
-impl Actor for MovingAverage {
+impl Actor for MovingAverageActor {
   type Context = Context<Self>;
 }
 
@@ -33,7 +33,7 @@ use crate::actors::mid_price::MidPrice;
 
 use super::mid_price::MidPriceResponse;
 
-impl Handler<MidPrice> for MovingAverage {
+impl Handler<MidPrice> for MovingAverageActor {
   type Result = MessageResult<MidPrice>;
 
   fn handle(
@@ -77,7 +77,7 @@ use crate::assert_matches;
 
 #[actix_rt::test]
 async fn positive() {
-  let addr = MovingAverage::new(3, vec![]).start();
+  let addr = MovingAverageActor::new(3, vec![]).start();
   let res = addr
     .send(MidPrice {
       price: 1.,

@@ -7,14 +7,14 @@ use actix::{Actor, Context, Handler, Message, MessageResult, Recipient};
 use chrono::Utc;
 use serde::Deserialize;
 
-pub struct PolicyMaker {
+pub struct PolicyMakerActor {
   current_true_price: f64,
   prev_true_price: f64,
   frame: PolicyFrame,
   recipients: Vec<Recipient<PolicyDecision>>, // TODO
 }
 
-impl Actor for PolicyMaker {
+impl Actor for PolicyMakerActor {
   type Context = Context<Self>;
 
   fn started(&mut self, _ctx: &mut Context<Self>) {
@@ -45,8 +45,8 @@ pub enum PolicyDecision {
   HoldAction(Hold),
 }
 
-impl PolicyMaker {
-  fn new(recipients: Vec<Recipient<PolicyDecision>>) -> Self {
+impl PolicyMakerActor {
+  pub fn new(recipients: Vec<Recipient<PolicyDecision>>) -> Self {
     Self {
       current_true_price: 0.0,
       prev_true_price: 0.0,
@@ -119,7 +119,7 @@ pub struct MovingMessage {
   pub best_ask_qty: f64,
 }
 
-impl Handler<MidPrice> for PolicyMaker {
+impl Handler<MidPrice> for PolicyMakerActor {
   type Result = MessageResult<MidPrice>;
 
   // Handle true price (TickerMessage), always keep the latest true price
@@ -147,7 +147,7 @@ impl Handler<MidPrice> for PolicyMaker {
   }
 }
 
-impl Handler<MovingAverageMessage> for PolicyMaker {
+impl Handler<MovingAverageMessage> for PolicyMakerActor {
   type Result = f64;
   // Handle moving average message. Receive message then make a policy decision
   fn handle(
@@ -195,7 +195,7 @@ mod test {
 
   use super::PolicyDecision;
   use super::PolicyFrame;
-  use super::PolicyMaker;
+  use super::PolicyMakerActor;
 
   use super::{Buy, Sell};
   use crate::trade::TradeActor;
@@ -208,9 +208,8 @@ mod test {
   async fn test_policy_buy() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    let arbiter = Arbiter::new();
-    let trade_actor = TradeActor { arbiter }.start().recipient();
-    let sut = PolicyMaker::new(vec![trade_actor]);
+    let trade_actor = TradeActor {}.start().recipient();
+    let sut = PolicyMakerActor::new(vec![trade_actor]);
     let addr = sut.start();
     addr.do_send(MidPrice {
       symbol: "BTCUSDT".to_string(),

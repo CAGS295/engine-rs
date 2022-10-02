@@ -13,9 +13,7 @@ use std::sync::mpsc::channel;
 
 use crate::policy_maker::PolicyDecision;
 
-pub struct TradeActor {
-  pub arbiter: Arbiter,
-}
+pub struct TradeActor {}
 
 impl Actor for TradeActor {
   type Context = Context<Self>;
@@ -80,6 +78,9 @@ impl Handler<Buy> for TradeActor {
 }
 
 impl TradeActor {
+  pub fn new() -> Self {
+    Self {}
+  }
   fn buy(&mut self, msg: Buy) -> Result<Transaction, binance::errors::Error> {
     log::info!("TRADE BUY");
     let (tx, rx) = channel();
@@ -158,7 +159,7 @@ mod test {
   async fn test_actor_sell() {
     dotenv().ok();
     let arbiter = Arbiter::new();
-    let trade_actor = TradeActor { arbiter }.start();
+    let trade_actor = TradeActor {}.start();
     let res = trade_actor
       .send(Sell {
         symbol: "BTCUSDT".to_string(),
@@ -175,7 +176,7 @@ mod test {
   async fn test_actor_buy() {
     dotenv().ok();
     let arbiter = Arbiter::new();
-    let trade_actor = TradeActor { arbiter }.start();
+    let trade_actor = TradeActor {}.start();
     let res = trade_actor
       .send(Buy {
         symbol: "BTCUSDT".to_string(),
