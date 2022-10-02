@@ -216,14 +216,14 @@ mod test {
       symbol: "BTCUSDT".to_string(),
       price: 100.,
     });
-    addr.send(MovingAverageMessage(10.)).await;
+    addr.send(MovingAverageMessage(10.)).await.unwrap();
 
     addr
       .send(MidPrice {
         symbol: "BTCUSDT".to_string(),
         price: 1000.,
       })
-      .await;
+      .await.unwrap();
     addr.do_send(MovingAverageMessage(100.));
     loop {
       //println!("waiting");
