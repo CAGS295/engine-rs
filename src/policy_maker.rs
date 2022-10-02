@@ -17,9 +17,7 @@ pub struct PolicyMakerActor {
 impl Actor for PolicyMakerActor {
   type Context = Context<Self>;
 
-  fn started(&mut self, _ctx: &mut Context<Self>) {
-    println!("Actor is alive");
-  }
+  fn started(&mut self, _ctx: &mut Context<Self>) {}
 
   fn stopped(&mut self, _ctx: &mut Context<Self>) {
     println!("Actor is stopped");
@@ -155,6 +153,7 @@ impl Handler<MovingAverageMessage> for PolicyMakerActor {
     msg: MovingAverageMessage,
     _ctx: &mut Context<Self>,
   ) -> f64 {
+    log::info!("Policy maker");
     let _prev_moving_price = self.frame.moving_average_price;
 
     self.frame.moving_average_gradient =
@@ -162,7 +161,7 @@ impl Handler<MovingAverageMessage> for PolicyMakerActor {
     self.frame.moving_average_price = msg.0;
 
     let decision = self.make_policy_decision(&self.frame);
-    log::error!("Decision: {:?}", decision);
+    log::info!("Policy decided: {:?}", decision);
     self.propagate_decision(decision);
     msg.0
   }
