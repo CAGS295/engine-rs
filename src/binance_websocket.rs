@@ -1,6 +1,5 @@
-use crate::actors::mid_price::MidPrice;
 use crate::util::deserialize_from_str;
-use actix::MessageResult;
+
 use actix::{Message, Recipient};
 use actix_codec::Framed;
 use awc::error::WsClientError;

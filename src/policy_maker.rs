@@ -1,5 +1,5 @@
 use crate::actors::mid_price::MidPrice;
-use crate::binance_websocket::TickerMessage;
+
 use crate::trade::{Buy, Hold, Sell};
 use crate::util::{deserialize_from_str, MovingAverageMessage};
 use actix::{Actor, Context, Handler, Message, Recipient};
@@ -165,7 +165,7 @@ impl Handler<MovingAverageMessage> for PolicyMaker {
     msg: MovingAverageMessage,
     _ctx: &mut Context<Self>,
   ) -> f64 {
-    let prev_moving_price = self.frame.moving_average_price;
+    let _prev_moving_price = self.frame.moving_average_price;
 
     self.frame.moving_average_gradient =
       msg.0 - self.frame.moving_average_price;
@@ -174,7 +174,7 @@ impl Handler<MovingAverageMessage> for PolicyMaker {
     let decision = self.make_policy_decision(&self.frame);
     log::error!("Decision: {:?}", decision);
     self.propagate_decision(decision);
-    return msg.0;
+    msg.0
   }
 }
 
@@ -207,7 +207,7 @@ mod test {
   use super::PolicyFrame;
   use super::PolicyMaker;
 
-  use super::{Buy, Hold, Sell};
+  use super::{Buy, Sell};
   use crate::trade::TradeActor;
   use actix::Actor;
   use actix::Arbiter;

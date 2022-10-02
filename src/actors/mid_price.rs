@@ -1,5 +1,3 @@
-use actix::MessageResult;
-
 use crate::{Actor, Context, Handler, Message, Recipient};
 
 #[derive(Message)]
