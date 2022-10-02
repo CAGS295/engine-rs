@@ -9,7 +9,6 @@ use serde::Deserialize;
 
 pub struct PolicyMakerActor {
   current_true_price: f64,
-  prev_true_price: f64,
   frame: PolicyFrame,
   recipients: Vec<Recipient<PolicyDecision>>, // TODO
 }
@@ -47,7 +46,6 @@ impl PolicyMakerActor {
   pub fn new(recipients: Vec<Recipient<PolicyDecision>>) -> Self {
     Self {
       current_true_price: 0.0,
-      prev_true_price: 0.0,
       frame: PolicyFrame {
         symbol: "".to_string(),
         moving_average_gradient: 0.0,
@@ -59,7 +57,6 @@ impl PolicyMakerActor {
       recipients,
     }
   }
-  async fn run(self) {}
 
   fn propagate_decision(&self, decision: PolicyDecision) {
     for recipient in self.recipients.iter() {
