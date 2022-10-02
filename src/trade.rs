@@ -15,13 +15,15 @@ use std::sync::mpsc::channel;
 use crate::policy_maker::PolicyDecision;
 
 pub struct TradeActor {
-  arbiter: Arbiter,
+  pub arbiter: Arbiter,
 }
 
 impl Actor for TradeActor {
   type Context = Context<Self>;
 
-  fn started(&mut self, _ctx: &mut Context<Self>) {}
+  fn started(&mut self, _ctx: &mut Context<Self>) {
+    println!("Actor is alive");
+  }
 
   fn stopped(&mut self, _ctx: &mut Context<Self>) {
     println!("Actor is stopped");
@@ -95,6 +97,7 @@ impl TradeActor {
       arbiter: Arbiter::new(),
     }
   }
+
   fn buy(&mut self, msg: Buy) -> Result<Transaction, binance::errors::Error> {
     log::info!("ORDER: {:?}", msg);
     let (tx, rx) = channel();
@@ -152,7 +155,7 @@ async fn sell(
   price: f64,
 ) -> Result<Transaction, binance::errors::Error> {
   let account: Account = Binance::new_with_env(&Config::testnet());
-  let market_buy = OrderRequest {
+  let market_sell = OrderRequest {
     symbol: symbol.to_string(),
     quantity: Some(quantity),
     price: Some(price),
@@ -162,7 +165,7 @@ async fn sell(
     ..OrderRequest::default()
   };
 
-  account.place_order(market_buy).await
+  account.place_order(market_sell).await
 }
 
 #[cfg(test)]
