@@ -2,7 +2,9 @@ use crate::actors::mid_price::MidPrice;
 
 use crate::actors::mid_price::MidPriceResponse;
 use crate::trade::{Buy, Hold, Sell};
-use crate::util::{deserialize_from_str, MovingAverageMessage};
+use crate::util::{
+  deserialize_from_str, ControllerCommand, MovingAverageMessage,
+};
 use actix::{Actor, Context, Handler, Message, MessageResult, Recipient};
 use chrono::Utc;
 use serde::Deserialize;
@@ -34,6 +36,7 @@ pub struct PolicyFrame {
   true_price_gradient: f64,
   moving_average_price: f64,
   true_price: f64,
+  artificial_spread_coefficient: f64,
   prev_decision: Option<PolicyDecision>,
 }
 
@@ -56,6 +59,7 @@ impl PolicyMaker {
         true_price_gradient: 0.0,
         moving_average_price: 0.0,
         true_price: 0.0,
+        artificial_spread_coefficient: 1.0,
         prev_decision: None,
       },
       recipients,
@@ -139,6 +143,7 @@ impl Handler<MidPrice> for PolicyMaker {
       prev_decision: self.frame.prev_decision.take(),
       // TODO: update
       moving_average_gradient: 0.,
+      artificial_spread_coefficient: 1.,
       moving_average_price: 0.,
     };
     self.frame = frame;
@@ -168,15 +173,38 @@ impl Handler<MovingAverageMessage> for PolicyMaker {
   }
 }
 
+impl Handler<ControllerCommand> for PolicyMaker {
+  type Result = f64;
+  // Handle moving average message. Receive message then make a policy decision
+  fn handle(
+    &mut self,
+    msg: ControllerCommand,
+    _ctx: &mut Context<Self>,
+  ) -> f64 {
+    let _prev_moving_price = self.frame.moving_average_price;
+
+    self.frame.moving_average_gradient =
+      msg.0 - self.frame.moving_average_price;
+    self.frame.moving_average_price = msg.0;
+
+    let decision = self.make_policy_decision(&self.frame);
+    log::error!("Decision: {:?}", decision);
+    self.propagate_decision(decision);
+    msg.0
+  }
+}
+
 fn should_buy(frame: &PolicyFrame) -> bool {
   is_rising_trend(frame)
-    && frame.moving_average_price < frame.true_price
+    && frame.moving_average_price
+      < frame.true_price * frame.artificial_spread_coefficient
     && !(matches!(frame.prev_decision, Some(PolicyDecision::BuyAction(_))))
 }
 
 fn should_sell(frame: &PolicyFrame) -> bool {
   is_downward_trend(frame)
-    && frame.moving_average_price > frame.true_price
+    && frame.moving_average_price * frame.artificial_spread_coefficient
+      > frame.true_price
     && !(matches!(frame.prev_decision, Some(PolicyDecision::SellAction(_))))
 }
 
@@ -245,6 +273,7 @@ mod test {
       true_price_gradient: 1.0,
       moving_average_price: 10.0,
       true_price: 20.0,
+      artificial_spread_coefficient: 1.0,
       prev_decision: Some(PolicyDecision::SellAction(sell)),
     };
 
@@ -270,6 +299,7 @@ mod test {
       true_price_gradient: 1.0,
       moving_average_price: 10.0,
       true_price: 20.0,
+      artificial_spread_coefficient: 1.0,
       prev_decision: Some(PolicyDecision::BuyAction(buy)),
     };
 
