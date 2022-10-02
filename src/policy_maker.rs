@@ -213,6 +213,7 @@ mod test {
   use chrono::Utc;
 
   #[actix_rt::test]
+  #[ignore]
   async fn test_policy_buy() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
