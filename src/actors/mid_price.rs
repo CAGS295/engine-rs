@@ -8,7 +8,7 @@ pub struct MidPrice {
 }
 
 #[derive(Debug)]
-pub enum MidPriceResponse{
+pub enum MidPriceResponse {
   MovingAverage(f64),
   Policy(f64),
 }
