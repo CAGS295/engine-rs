@@ -1,5 +1,6 @@
 use actix::Actor;
 
+use actix::Arbiter;
 use actix::Context;
 use actix::Handler;
 use actix::Message;
@@ -13,7 +14,9 @@ use std::sync::mpsc::channel;
 
 use crate::policy_maker::PolicyDecision;
 
-pub struct TradeActor {}
+pub struct TradeActor {
+  arbiter: Arbiter,
+}
 
 impl Actor for TradeActor {
   type Context = Context<Self>;
@@ -54,16 +57,19 @@ impl Handler<PolicyDecision> for TradeActor {
 
   fn handle(&mut self, msg: PolicyDecision, _ctx: &mut Context<Self>) {
     match msg {
-      PolicyDecision::BuyAction(buy) => {
-        self.buy(buy).unwrap();
-      }
-      PolicyDecision::SellAction(sell) => {
-        self.sell(sell).unwrap();
-      }
+      PolicyDecision::BuyAction(buy) => self
+        .buy(buy)
+        .map_err(|e| log::warn!("Error buying: {:?}", e))
+        .ok(),
+      PolicyDecision::SellAction(sell) => self
+        .sell(sell)
+        .map_err(|e| log::warn!("Error selling: {:?}", e))
+        .ok(),
       PolicyDecision::HoldAction(hold) => {
         println!("Hold: {:?}", hold);
+        None
       }
-    }
+    };
   }
 }
 
@@ -77,16 +83,18 @@ impl Handler<Buy> for TradeActor {
 
 impl TradeActor {
   pub fn new() -> Self {
-    Self {}
+    Self {
+      arbiter: Arbiter::new(),
+    }
   }
   fn buy(&mut self, msg: Buy) -> Result<Transaction, binance::errors::Error> {
-    log::info!("TRADE BUY");
+    log::info!("ORDER: {:?}", msg);
     let (tx, rx) = channel();
     let task = async move {
       let res = buy(msg.symbol.as_str(), msg.quantity, msg.price).await;
       tx.send(res).unwrap();
     };
-    actix::spawn(task);
+    self.arbiter.spawn(task);
     rx.recv().unwrap()
   }
 }
@@ -100,12 +108,13 @@ impl Handler<Sell> for TradeActor {
 
 impl TradeActor {
   fn sell(&mut self, msg: Sell) -> Result<Transaction, binance::errors::Error> {
+    log::info!("ORDER: {:?}", msg);
     let (tx, rx) = channel();
     let task = async move {
       let res = sell(msg.symbol.as_str(), msg.quantity, msg.price).await;
       tx.send(res).unwrap();
     };
-    actix::spawn(task);
+    self.arbiter.spawn(task);
     rx.recv().unwrap()
   }
 }
@@ -156,8 +165,7 @@ mod test {
   #[actix_rt::test]
   async fn test_actor_sell() {
     dotenv().ok();
-    let _arbiter = Arbiter::new();
-    let trade_actor = TradeActor {}.start();
+    let trade_actor = TradeActor::new().start();
     let res = trade_actor
       .send(Sell {
         symbol: "BTCUSDT".to_string(),
@@ -173,8 +181,7 @@ mod test {
   #[actix_rt::test]
   async fn test_actor_buy() {
     dotenv().ok();
-    let _arbiter = Arbiter::new();
-    let trade_actor = TradeActor {}.start();
+    let trade_actor = TradeActor::new().start();
     let res = trade_actor
       .send(Buy {
         symbol: "BTCUSDT".to_string(),

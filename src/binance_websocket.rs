@@ -31,17 +31,17 @@ enum BinanceMessageContent {
 #[derive(Message, Deserialize, Debug, Clone, Default)]
 #[rtype(result = "f64")]
 pub struct TickerMessage {
-  #[serde(deserialize_with = "deserialize_from_str", rename = "u")]
+  #[serde(alias = "u")]
   pub update_id: u64,
-  #[serde(deserialize_with = "deserialize_from_str", rename = "s")]
+  #[serde(alias = "s")]
   pub symbol: String,
-  #[serde(deserialize_with = "deserialize_from_str", rename = "b")]
+  #[serde(deserialize_with = "deserialize_from_str", alias = "b")]
   pub best_bid_price: f64,
-  #[serde(deserialize_with = "deserialize_from_str", rename = "B")]
+  #[serde(deserialize_with = "deserialize_from_str", alias = "B")]
   pub best_bid_qty: f64,
-  #[serde(deserialize_with = "deserialize_from_str", rename = "a")]
+  #[serde(deserialize_with = "deserialize_from_str", alias = "a")]
   pub best_ask_price: f64,
-  #[serde(deserialize_with = "deserialize_from_str", rename = "A")]
+  #[serde(deserialize_with = "deserialize_from_str", alias = "A")]
   pub best_ask_qty: f64,
 }
 
@@ -86,17 +86,18 @@ impl BinanceIngestor {
   async fn get_stream(
     &self,
   ) -> Result<Framed<BoxedSocket, Codec>, WsClientError> {
-    let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
+    //let user_stream: UserStream = Binance::new_with_env(&Config::testnet());
 
-    let listen_key = user_stream
-      .start()
-      .await
-      .map_err(|_| WsClientError::MissingConnectionHeader)?
-      .listen_key;
+    //let listen_key = user_stream
+    //  .start()
+    //  .await
+    //  .map_err(|_| WsClientError::MissingConnectionHeader)?
+    //  .listen_key;
 
-    self.client
+    self
+      .client
       .ws(format!(
-        "wss://testnet.binance.vision/stream?streams=btcusdt@bookTicker/{listen_key:}"
+        "wss://testnet.binance.vision/stream?streams=btcusdt@bookTicker"
       ))
       .connect()
       .await
@@ -111,14 +112,14 @@ impl BinanceIngestor {
         match serde_json::from_slice::<BinanceMessage>(&txt) {
           Ok(v) => match v.data {
             BinanceMessageContent::BookTicker(tm) => {
-              log::info!("Received ticker message: {tm:?}");
+              log::debug!("Received ticker message: {tm:?}");
 
               for r in &self.book_ticker_recipients {
                 r.do_send(tm.clone());
               }
             }
             BinanceMessageContent::UserDataAccountUpdate(aum) => {
-              log::info!("Received account update message: {aum:?}");
+              log::debug!("Received account update message: {aum:?}");
 
               for r in &self.user_data_account_update_recipients {
                 r.do_send(aum.clone());

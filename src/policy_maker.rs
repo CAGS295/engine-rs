@@ -150,7 +150,6 @@ impl Handler<MovingAverageMessage> for PolicyMakerActor {
     msg: MovingAverageMessage,
     _ctx: &mut Context<Self>,
   ) -> f64 {
-    log::info!("Policy maker");
     let _prev_moving_price = self.frame.moving_average_price;
 
     self.frame.moving_average_gradient =
@@ -204,7 +203,7 @@ mod test {
   async fn test_policy_buy() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    let trade_actor = TradeActor {}.start().recipient();
+    let trade_actor = TradeActor::new().start().recipient();
     let sut = PolicyMakerActor::new(vec![trade_actor]);
     let addr = sut.start();
     addr.do_send(MidPrice {
