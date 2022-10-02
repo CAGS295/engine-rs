@@ -11,7 +11,7 @@ pub struct PolicyMaker {
   current_true_price: f64,
   prev_true_price: f64,
   frame: PolicyFrame,
-  recipients: Vec<Recipient<Buy>>, // TODO
+  recipients: Vec<Recipient<PolicyDecision>>, // TODO
 }
 
 impl Actor for PolicyMaker {
@@ -37,15 +37,16 @@ pub struct PolicyFrame {
   prev_decision: Option<PolicyDecision>,
 }
 
-#[derive(Debug)]
-enum PolicyDecision {
+#[derive(Message, Debug, Clone)]
+#[rtype(result = "()")]
+pub enum PolicyDecision {
   BuyAction(Buy),
   SellAction(Sell),
   HoldAction(Hold),
 }
 
 impl PolicyMaker {
-  fn new(recipients: Vec<Recipient<Buy>>) -> Self {
+  fn new(recipients: Vec<Recipient<PolicyDecision>>) -> Self {
     Self {
       current_true_price: 0.0,
       prev_true_price: 0.0,
@@ -63,22 +64,8 @@ impl PolicyMaker {
   async fn run(self) {}
 
   fn propagate_decision(&self, decision: PolicyDecision) {
-    match decision {
-      PolicyDecision::BuyAction(buy) => {
-        for recipient in self.recipients.iter() {
-          recipient.do_send(buy.clone());
-        }
-      }
-      _ => {} //PolicyDecision::SellAction(sell) => {
-              //  for recipient in self.recipients {
-              //    recipient.do_send(sell);
-              //  }
-              //}
-              //PolicyDecision::HoldAction(hold) => {
-              //  for recipient in self.recipients {
-              //    recipient.do_send(hold);
-              //  }
-              //}
+    for recipient in self.recipients.iter() {
+      recipient.do_send(decision.clone());
     }
   }
 

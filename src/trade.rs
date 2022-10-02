@@ -11,6 +11,8 @@ use binance::rest_model::{OrderSide, OrderType, TimeInForce};
 use chrono::{DateTime, Utc};
 use std::sync::mpsc::channel;
 
+use crate::policy_maker::PolicyDecision;
+
 pub struct TradeActor {
   pub arbiter: Arbiter,
 }
@@ -27,6 +29,11 @@ impl Actor for TradeActor {
   }
 }
 
+enum Order {
+  Buy(Buy),
+  Sell(Sell),
+}
+
 #[derive(Message, Clone, Debug)]
 #[rtype(result = "Result<Transaction, binance::errors::Error>")]
 pub struct Buy {
@@ -36,7 +43,7 @@ pub struct Buy {
   pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Message, Debug)]
+#[derive(Message, Debug, Clone)]
 #[rtype(result = "Result<Transaction, binance::errors::Error>")]
 pub struct Sell {
   pub symbol: String,
@@ -45,24 +52,47 @@ pub struct Sell {
   pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Hold {
   pub symbol: String,
   pub timestamp: DateTime<Utc>,
+}
+
+impl Handler<PolicyDecision> for TradeActor {
+  type Result = ();
+
+  fn handle(&mut self, msg: PolicyDecision, _ctx: &mut Context<Self>) {
+    match msg {
+      PolicyDecision::BuyAction(buy) => {
+        self.buy(buy);
+      }
+      PolicyDecision::SellAction(sell) => {
+        self.sell(sell);
+      }
+      PolicyDecision::HoldAction(hold) => {
+        println!("Hold: {:?}", hold);
+      }
+    }
+  }
 }
 
 impl Handler<Buy> for TradeActor {
   type Result = Result<Transaction, binance::errors::Error>;
 
   fn handle(&mut self, msg: Buy, _ctx: &mut Context<Self>) -> Self::Result {
+    self.buy(msg)
+  }
+}
+
+impl TradeActor {
+  fn buy(&mut self, msg: Buy) -> Result<Transaction, binance::errors::Error> {
     log::info!("TRADE BUY");
     let (tx, rx) = channel();
-
     let task = async move {
       let res = buy(msg.symbol.as_str(), msg.quantity, msg.price).await;
       tx.send(res).unwrap();
     };
-    self.arbiter.spawn(task);
+    actix::spawn(task);
     rx.recv().unwrap()
   }
 }
@@ -70,12 +100,18 @@ impl Handler<Buy> for TradeActor {
 impl Handler<Sell> for TradeActor {
   type Result = Result<Transaction, binance::errors::Error>;
   fn handle(&mut self, msg: Sell, _ctx: &mut Context<Self>) -> Self::Result {
+    self.sell(msg)
+  }
+}
+
+impl TradeActor {
+  fn sell(&mut self, msg: Sell) -> Result<Transaction, binance::errors::Error> {
     let (tx, rx) = channel();
     let task = async move {
       let res = sell(msg.symbol.as_str(), msg.quantity, msg.price).await;
       tx.send(res).unwrap();
     };
-    self.arbiter.spawn(task);
+    actix::spawn(task);
     rx.recv().unwrap()
   }
 }
