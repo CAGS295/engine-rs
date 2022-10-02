@@ -223,7 +223,8 @@ mod test {
         symbol: "BTCUSDT".to_string(),
         price: 1000.,
       })
-      .await.unwrap();
+      .await
+      .unwrap();
     addr.do_send(MovingAverageMessage(100.));
     loop {
       //println!("waiting");
