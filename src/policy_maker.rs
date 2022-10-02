@@ -194,8 +194,8 @@ fn should_buy(frame: &PolicyFrame) -> bool {
 
 fn should_sell(frame: &PolicyFrame) -> bool {
   is_downward_trend(frame)
-    && frame.moving_average_price * frame.artificial_spread_coefficient
-      > frame.true_price
+    && frame.moving_average_price
+      > frame.true_price * frame.artificial_spread_coefficient
     && !(matches!(frame.prev_decision, Some(PolicyDecision::SellAction(_))))
 }
 
