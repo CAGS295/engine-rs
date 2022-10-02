@@ -29,11 +29,6 @@ impl Actor for TradeActor {
   }
 }
 
-enum Order {
-  Buy(Buy),
-  Sell(Sell),
-}
-
 #[derive(Message, Clone, Debug)]
 #[rtype(result = "Result<Transaction, binance::errors::Error>")]
 pub struct Buy {
@@ -64,10 +59,10 @@ impl Handler<PolicyDecision> for TradeActor {
   fn handle(&mut self, msg: PolicyDecision, _ctx: &mut Context<Self>) {
     match msg {
       PolicyDecision::BuyAction(buy) => {
-        self.buy(buy);
+        self.buy(buy).unwrap();
       }
       PolicyDecision::SellAction(sell) => {
-        self.sell(sell);
+        self.sell(sell).unwrap();
       }
       PolicyDecision::HoldAction(hold) => {
         println!("Hold: {:?}", hold);
@@ -127,7 +122,7 @@ async fn buy(
     quantity: Some(quantity),
     price: Some(price),
     order_type: OrderType::Limit,
-    time_in_force: Some(TimeInForce::GTC),
+    time_in_force: Some(TimeInForce::FOK),
     side: OrderSide::Buy,
     ..OrderRequest::default()
   };
